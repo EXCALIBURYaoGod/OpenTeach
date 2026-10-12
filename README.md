@@ -8,6 +8,8 @@
 可翻页的幻灯片、配音语音，然后交付一间**多智能体互动课堂**：AI 教师主讲，助教、笔记员、
 「好奇宝宝」等角色实时插话、上台板书、投屏演示，全程可回放、可续传。
 
+![多智能体课堂：逐页讲解、播放控制栏与角色互动区](docs/assets/classroom.png)
+
 这本是 [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) 独立部署的 Web 站点能力。OpenTeach
 把它**重构成可被 dsh 装载与组合的插件**：后端是一个 dsh 插件包，前端复用 OpenMAIC 界面，
 模型能力完全沿用宿主配置。
