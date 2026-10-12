@@ -14,7 +14,7 @@ import { isIP } from "node:net";
 import { Readable } from "stream";
 import { STATUS_CODES, createServer } from "node:http";
 import { homedir, platform, release, tmpdir } from "node:os";
-import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { PassThrough, Readable as Readable$1, Writable } from "node:stream";
 import * as zlib$1 from "node:zlib";
 import { env, versions } from "node:process";
@@ -2791,15 +2791,15 @@ async function fillContextWindow(host, route, profile, modelId) {
 *
 * @module llm/plugin
 */
-var plugin_exports$8 = /* @__PURE__ */ __exportAll({
+var plugin_exports$9 = /* @__PURE__ */ __exportAll({
 	Config: () => Config$4,
-	apply: () => apply$11,
-	name: () => name$11,
-	provide: () => provide$9,
+	apply: () => apply$12,
+	name: () => name$12,
+	provide: () => provide$10,
 	useLlm: () => useLlm
 });
-const name$11 = "edu-loop:llm";
-const provide$9 = "eduLlm";
+const name$12 = "edu-loop:llm";
+const provide$10 = "eduLlm";
 /** 单个模型条目的结构校验。 */
 const ModelProfileSchema = z.object({
 	id: z.string().required().description("传给 GenerateOptions.model 的精确模型 id"),
@@ -2844,7 +2844,7 @@ const Config$4 = z.object({
 * apply 为异步：dsh 的 Loader 并行启动各条目，宿主 `ctx.llm` 可能稍后才激活，
 * {@link probeDshLlm} 会做有界等待（独立运行时无 dsh 内核，立即返回，无额外延迟）。
 */
-async function apply$11(ctx, config) {
+async function apply$12(ctx, config) {
 	const host = await probeDshLlm(ctx);
 	const loaded = host === void 0 ? loadLlm(config) : await loadFromDshHost(ctx, host);
 	ctx.provide("eduLlm", loaded);
@@ -3544,17 +3544,17 @@ function mapTtsAsset(row) {
 *
 * @module db/plugin
 */
-var plugin_exports$7 = /* @__PURE__ */ __exportAll({
+var plugin_exports$8 = /* @__PURE__ */ __exportAll({
 	Config: () => Config$3,
-	apply: () => apply$10,
-	name: () => name$10,
-	provide: () => provide$8,
+	apply: () => apply$11,
+	name: () => name$11,
+	provide: () => provide$9,
 	useRepo: () => useRepo
 });
-const name$10 = "edu-loop:db";
-const provide$8 = ["db", "repo"];
+const name$11 = "edu-loop:db";
+const provide$9 = ["db", "repo"];
 const Config$3 = z.object({ filePath: z.string().required().description("SQLite 库文件路径") });
-function apply$10(ctx, config) {
+function apply$11(ctx, config) {
 	const db = createDatabase(config.filePath);
 	const repo = new Repository(db);
 	ctx.provide("db", db);
@@ -11364,11 +11364,11 @@ var DshLlmAdapter = class extends LlmAdapter {
 //#endregion
 //#region packages/kernel/src/dsh-kernel.ts
 var dsh_kernel_exports = /* @__PURE__ */ __exportAll({
-	apply: () => apply$9,
+	apply: () => apply$10,
 	inject: () => inject$5,
-	name: () => name$9
+	name: () => name$10
 });
-const name$9 = "openteach:kernel";
+const name$10 = "openteach:kernel";
 /** 依赖本项目的 provider 运行时（`eduLlm`）就绪。 */
 const inject$5 = ["eduLlm"];
 /** 等待宿主内核服务的上限（dsh 并行装载，实测 0.5s 内就绪）。 */
@@ -11392,7 +11392,7 @@ async function reuseHostKernel(ctx) {
 	}
 	return ctx.get("llm") !== void 0;
 }
-async function apply$9(ctx) {
+async function apply$10(ctx) {
 	const eduLlm = ctx.get("eduLlm");
 	if (await reuseHostKernel(ctx)) {
 		console.log("[dsh] 复用 dsh 宿主编排内核（eduLlm 反向适配宿主 ctx.llm，无需桥接）");
@@ -11415,11 +11415,11 @@ async function apply$9(ctx) {
 }
 //#endregion
 //#region packages/storage/src/plugin.ts
-var plugin_exports$6 = /* @__PURE__ */ __exportAll({
-	apply: () => apply$8,
+var plugin_exports$7 = /* @__PURE__ */ __exportAll({
+	apply: () => apply$9,
 	inject: () => inject$4,
-	name: () => name$8,
-	provide: () => provide$7,
+	name: () => name$9,
+	provide: () => provide$8,
 	useOpenmaicStorage: () => useOpenmaicStorage
 });
 /** 动态加载真机 @openmaic/dsl（specifier 动态拼装以规避 tsc 静态解析）；失败返回 null。 */
@@ -11588,14 +11588,14 @@ var SqliteDocumentStore = class {
 		this.db.prepare("DELETE FROM storage_docs WHERE id = ?").run(id);
 	}
 };
-const name$8 = "openmaic:storage";
+const name$9 = "openmaic:storage";
 const inject$4 = ["db"];
-const provide$7 = [
+const provide$8 = [
 	"kv.store",
 	"docs.store",
 	"openmaic.storage"
 ];
-async function apply$8(ctx) {
+async function apply$9(ctx) {
 	const db = ctx.get("db");
 	db.exec(STORAGE_SCHEMA);
 	const dsl = await tryLoadOpenmaicDsl();
@@ -11623,11 +11623,11 @@ function useOpenmaicStorage(ctx) {
 }
 //#endregion
 //#region packages/generation/src/plugin.ts
-var plugin_exports$5 = /* @__PURE__ */ __exportAll({
-	apply: () => apply$7,
+var plugin_exports$6 = /* @__PURE__ */ __exportAll({
+	apply: () => apply$8,
 	inject: () => inject$3,
-	name: () => name$7,
-	provide: () => provide$6,
+	name: () => name$8,
+	provide: () => provide$7,
 	useOpenmaicGeneration: () => useOpenmaicGeneration
 });
 /**
@@ -11708,10 +11708,10 @@ function normalizeMockOutline(data, input) {
 		})
 	};
 }
-const name$7 = "openmaic:generation";
+const name$8 = "openmaic:generation";
 const inject$3 = ["eduLlm"];
-const provide$6 = "openmaic.generation";
-function apply$7(ctx, config = {}) {
+const provide$7 = "openmaic.generation";
+function apply$8(ctx, config = {}) {
 	const loaded = ctx.get("eduLlm");
 	const source = (config.forceMock ?? false) || loaded.degradedProviders.has(loaded.defaultProvider) ? "mock" : "llm";
 	const aiCall = makeAiCall(loaded);
@@ -11776,10 +11776,10 @@ function useOpenmaicGeneration(ctx) {
 }
 //#endregion
 //#region packages/layout/src/plugin.ts
-var plugin_exports$4 = /* @__PURE__ */ __exportAll({
-	apply: () => apply$6,
-	name: () => name$6,
-	provide: () => provide$5,
+var plugin_exports$5 = /* @__PURE__ */ __exportAll({
+	apply: () => apply$7,
+	name: () => name$7,
+	provide: () => provide$6,
 	useOpenmaicLayout: () => useOpenmaicLayout
 });
 const VIEWPORT_W = 960;
@@ -11941,9 +11941,9 @@ function contentElements(input) {
 		accentBar(40, 506, Math.max(24, Math.round(880 * ((input.index + 1) / input.total))), 4, color)
 	];
 }
-const name$6 = "openmaic:layout";
-const provide$5 = "openmaic.layout";
-function apply$6(ctx) {
+const name$7 = "openmaic:layout";
+const provide$6 = "openmaic.layout";
+function apply$7(ctx) {
 	ctx.provide("openmaic.layout", {
 		available: true,
 		layoutSlide(input) {
@@ -11975,11 +11975,11 @@ function useOpenmaicLayout(ctx) {
 }
 //#endregion
 //#region packages/slide/src/plugin.ts
-var plugin_exports$3 = /* @__PURE__ */ __exportAll({
-	apply: () => apply$5,
+var plugin_exports$4 = /* @__PURE__ */ __exportAll({
+	apply: () => apply$6,
 	inject: () => inject$2,
-	name: () => name$5,
-	provide: () => provide$4,
+	name: () => name$6,
+	provide: () => provide$5,
 	useOpenmaicSlide: () => useOpenmaicSlide
 });
 /** 加载真机 @openmaic/dsl；无法解析时返回 null（specifier 动态拼装以规避 tsc 静态解析）。 */
@@ -12199,10 +12199,10 @@ function buildDeckDsl(dsl) {
 		};
 	};
 }
-const name$5 = "openmaic:slide";
+const name$6 = "openmaic:slide";
 const inject$2 = ["eduLlm", "repo"];
-const provide$4 = "openmaic.slide";
-async function apply$5(ctx) {
+const provide$5 = "openmaic.slide";
+async function apply$6(ctx) {
 	ctx.get("eduLlm");
 	ctx.get("repo");
 	const dsl = await tryLoadOpenmaic();
@@ -12238,12 +12238,12 @@ function useOpenmaicSlide(ctx) {
 }
 //#endregion
 //#region packages/audio/src/plugin.ts
-var plugin_exports$2 = /* @__PURE__ */ __exportAll({
-	apply: () => apply$4,
+var plugin_exports$3 = /* @__PURE__ */ __exportAll({
+	apply: () => apply$5,
 	listASRProviders: () => listASRProviders,
 	listTTSProviders: () => listTTSProviders,
-	name: () => name$4,
-	provide: () => provide$3,
+	name: () => name$5,
+	provide: () => provide$4,
 	useOpenmaicAudio: () => useOpenmaicAudio
 });
 const TTS_PROVIDERS$1 = {
@@ -12348,9 +12348,9 @@ async function transcribeASR(config, audio) {
 		default: throw new Error(`暂不支持的 ASR provider: ${config.providerId}`);
 	}
 }
-const name$4 = "openmaic:audio";
-const provide$3 = ["openmaic.tts", "openmaic.asr"];
-function apply$4(ctx) {
+const name$5 = "openmaic:audio";
+const provide$4 = ["openmaic.tts", "openmaic.asr"];
+function apply$5(ctx) {
 	const hasOpenKey = resolveCredential("OPENAI_API_KEY") !== void 0;
 	const tts = {
 		listProviders: listTTSProviders,
@@ -14718,12 +14718,12 @@ function createSqliteAgentRegistry(repo) {
 *
 * @module plugins/openmaic-classroom/plugin
 */
-var plugin_exports$1 = /* @__PURE__ */ __exportAll({
+var plugin_exports$2 = /* @__PURE__ */ __exportAll({
 	Config: () => Config$2,
-	apply: () => apply$3,
+	apply: () => apply$4,
 	inject: () => inject$1,
-	name: () => name$3,
-	provide: () => provide$2,
+	name: () => name$4,
+	provide: () => provide$3,
 	useOpenmaicClassroom: () => useOpenmaicClassroom
 });
 /** 把请求透传的场景快照归一化为工具层可用的 {@link ClassroomSceneSnapshot}。 */
@@ -14854,7 +14854,7 @@ function mapSessionRecord(record) {
 		lastSeq: record.lastSeq
 	};
 }
-const name$3 = "openmaic:classroom";
+const name$4 = "openmaic:classroom";
 /**
 * 依赖：`eduLlm`（本项目 provider 运行时，用于解析降级态）、`llm`（DSH LlmRuntime
 * 编排内核，由 dsh-kernel 装配）、`agents`（DSH AgentRegistry）。后两者在
@@ -14865,14 +14865,14 @@ const inject$1 = [
 	"llm",
 	"agents"
 ];
-const provide$2 = "openmaic.classroom";
+const provide$3 = "openmaic.classroom";
 const Config$2 = z.object({
 	defaultAgentIds: z.array(z.string()),
 	maxAgentTurns: z.number(),
 	maxActionsPerAgent: z.number(),
 	enableWhiteboardTools: z.boolean()
 });
-function apply$3(ctx, config = {}) {
+function apply$4(ctx, config = {}) {
 	const loaded = ctx.get("eduLlm");
 	const source = ctx.get("agents") !== void 0 && ctx.get("llm") !== void 0 ? "dsh" : "fallback";
 	const maxAgentTurns = config.maxAgentTurns ?? 6;
@@ -15151,9 +15151,9 @@ function useOpenmaicClassroom(ctx) {
 //#endregion
 //#region packages/openmaic-core/lib/index.js
 var lib_exports = /* @__PURE__ */ __exportAll({
-	apply: () => apply$2,
+	apply: () => apply$3,
 	name: () => name24,
-	provide: () => provide$1
+	provide: () => provide$2
 });
 const require$1 = createRequire(import.meta.url);
 var __create = Object.create;
@@ -15351,7 +15351,7 @@ var init_logger = __esm({ "packages/openmaic-core/src/lib/logger.ts"() {
 } });
 var ShapePathFormulasKeys;
 var ElementTypes;
-var init_slides = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/slides.js"() {
+var init_slides = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/slides.js"() {
 	(function(ShapePathFormulasKeys2) {
 		ShapePathFormulasKeys2["ROUND_RECT"] = "roundRect";
 		ShapePathFormulasKeys2["ROUND_RECT_DIAGONAL"] = "roundRectDiagonal";
@@ -15388,7 +15388,7 @@ var init_slides = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0af
 		ElementTypes2["CODE"] = "code";
 	})(ElementTypes || (ElementTypes = {}));
 } });
-var init_guards = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/guards.js"() {} });
+var init_guards = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/guards.js"() {} });
 function isSceneType(value) {
 	return typeof value === "string" && SCENE_TYPES.includes(value);
 }
@@ -15396,7 +15396,7 @@ function isSlideContent(content) {
 	return content.type === "slide";
 }
 var SCENE_TYPES;
-var init_stage = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/stage.js"() {
+var init_stage = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/stage.js"() {
 	SCENE_TYPES = [
 		"slide",
 		"quiz",
@@ -15408,7 +15408,7 @@ function isWidgetType(value) {
 	return typeof value === "string" && WIDGET_TYPES.includes(value);
 }
 var WIDGET_TYPES;
-var init_interactive = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/interactive.js"() {
+var init_interactive = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/interactive.js"() {
 	WIDGET_TYPES = [
 		"simulation",
 		"diagram",
@@ -15434,13 +15434,13 @@ function isPBLProject(value) {
 		"archived"
 	].includes(project.status) && Array.isArray(project.milestones) && Array.isArray(project.roles) && Array.isArray(project.submissions) && Array.isArray(project.evaluations) && Array.isArray(project.threads) && Array.isArray(project.engagementEvents) && typeof project.createdAt === "string" && typeof project.updatedAt === "string";
 }
-var init_pbl = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/pbl.js"() {} });
+var init_pbl = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/pbl.js"() {} });
 function isActionType(value) {
 	return typeof value === "string" && ACTION_TYPES.includes(value);
 }
 var SLIDE_ONLY_ACTIONS;
 var ACTION_TYPES;
-var init_action = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/action.js"() {
+var init_action = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/action.js"() {
 	SLIDE_ONLY_ACTIONS = ["spotlight", "laser"];
 	ACTION_TYPES = [
 		"spotlight",
@@ -15522,7 +15522,7 @@ var RUNTIME_SESSION_STATUSES;
 var ISO_TIMESTAMP_RE;
 var CHAT_RUNTIME_ROLES;
 var QUIZ_ATTEMPT_PHASES;
-var init_runtime = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/runtime.js"() {
+var init_runtime = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/runtime.js"() {
 	RUNTIME_SESSION_STATUSES = [
 		"active",
 		"completed",
@@ -15628,7 +15628,7 @@ function stripStageFields(stage) {
 	};
 }
 var STRIPPED_LINE_FIELDS;
-var init_legacy_line_geometry = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/legacy-line-geometry.js"() {
+var init_legacy_line_geometry = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/legacy-line-geometry.js"() {
 	STRIPPED_LINE_FIELDS = ["rotate", "height"];
 } });
 function stampAudioUrlAbolition(doc) {
@@ -15725,7 +15725,7 @@ var RUNTIME_DSL_VERSION_KEY;
 var DSL_MIGRATIONS;
 var RUNTIME_DSL_VERSION;
 var RUNTIME_DSL_MIGRATIONS;
-var init_version = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/version.js"() {
+var init_version = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/version.js"() {
 	init_legacy_line_geometry();
 	DSL_VERSION = "0.3.0";
 	UNVERSIONED_DSL_VERSION = "0.0.0";
@@ -16033,7 +16033,7 @@ var ACTION_REQUIRED_FIELDS;
 var RUNTIME_SESSION_REQUIRED_FIELDS;
 var RUNTIME_RECORD_REQUIRED_FIELDS;
 var RUNTIME_RECORD_OPTIONAL_FIELDS;
-var init_validate = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/validate.js"() {
+var init_validate = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/validate.js"() {
 	init_action();
 	init_interactive();
 	init_pbl();
@@ -16261,7 +16261,7 @@ var ELEMENT_DEFAULTS;
 var LINE_STYLES;
 var LINE_POINT_MARKERS;
 var SHAPE_TEXT_ALIGNS;
-var init_normalize = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/normalize.js"() {
+var init_normalize = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/normalize.js"() {
 	ELEMENT_DEFAULTS = {
 		text: {
 			defaultFontName: "Microsoft YaHei",
@@ -16301,7 +16301,7 @@ var init_normalize = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd
 		"bottom"
 	];
 } });
-var init_storage = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/storage.js"() {} });
+var init_storage = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/storage.js"() {} });
 function* slideMediaSlotDescriptors(slide) {
 	const background = slide.background?.type === "image" ? slide.background.image : void 0;
 	if (background) yield {
@@ -16350,7 +16350,7 @@ function* slideMediaSlotDescriptors(slide) {
 		};
 	}
 }
-var init_slide_media_slots = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/slide-media-slots.js"() {} });
+var init_slide_media_slots = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/slide-media-slots.js"() {} });
 function manifestKind(slotKind) {
 	switch (slotKind) {
 		case "background-image": return "background";
@@ -16442,11 +16442,11 @@ function enumerateAssetManifest(document2, options4 = {}) {
 		referenceCounts: new Map([...ownerKeysByRef].map(([ref, owners]) => [ref, owners.size]))
 	};
 }
-var init_asset_manifest = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/asset-manifest.js"() {
+var init_asset_manifest = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/asset-manifest.js"() {
 	init_slide_media_slots();
 	init_stage();
 } });
-var init_dist = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/index.js"() {
+var init_dist = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/index.js"() {
 	init_slides();
 	init_guards();
 	init_stage();
@@ -67835,7 +67835,7 @@ var Za;
 var Qa;
 var XhtmlObject;
 var A;
-var B;
+var B$1;
 var Body;
 var Br;
 var Html;
@@ -109258,7 +109258,7 @@ var init_pdfjs = __esm({ "node_modules/.pnpm/unpdf@1.8.1/node_modules/unpdf/dist
 			super(e7, `a`), this.href = fixURL(e7.href) || ``;
 		}
 	};
-	B = class extends XhtmlObject {
+	B$1 = class extends XhtmlObject {
 		constructor(e7) {
 			super(e7, `b`);
 		}
@@ -109378,7 +109378,7 @@ var init_pdfjs = __esm({ "node_modules/.pnpm/unpdf@1.8.1/node_modules/unpdf/dist
 			return new A(e7);
 		}
 		static b(e7) {
-			return new B(e7);
+			return new B$1(e7);
 		}
 		static body(e7) {
 			return new Body(e7);
@@ -175784,7 +175784,7 @@ var symbol;
 var _a2;
 var _b;
 var AISDKError;
-var name$2;
+var name$3;
 var marker2;
 var symbol2;
 var _a22;
@@ -175888,13 +175888,13 @@ var init_dist2 = __esm({ "node_modules/.pnpm/@ai-sdk+provider@3.0.18/node_module
 			return error62 != null && typeof error62 === "object" && markerSymbol in error62 && typeof error62[markerSymbol] === "boolean" && error62[markerSymbol] === true;
 		}
 	};
-	name$2 = "AI_APICallError";
-	marker2 = `vercel.ai.error.${name$2}`;
+	name$3 = "AI_APICallError";
+	marker2 = `vercel.ai.error.${name$3}`;
 	symbol2 = Symbol.for(marker2);
 	APICallError = class extends (_b2 = AISDKError, _a22 = symbol2, _b2) {
 		constructor({ message, url: url2, requestBodyValues, statusCode, responseHeaders, responseBody, cause, isRetryable: isRetryable2 = statusCode != null && (statusCode === 408 || statusCode === 409 || statusCode === 429 || statusCode >= 500), data }) {
 			super({
-				name: name$2,
+				name: name$3,
 				message,
 				cause
 			});
@@ -177186,7 +177186,7 @@ function finalizeParams(callee, params) {
 		Err: params?.Err
 	};
 }
-function failure(Err, issues, ctx) {
+function failure$1(Err, issues, ctx) {
 	let error62;
 	return {
 		success: false,
@@ -177313,7 +177313,7 @@ var init_parse = __esm({ "node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/
 			issues: []
 		}, ctx);
 		if (result instanceof Promise) throw new $ZodAsyncError();
-		return result.issues.length ? failure(_Err, result.issues, ctx) : {
+		return result.issues.length ? failure$1(_Err, result.issues, ctx) : {
 			success: true,
 			data: result.value
 		};
@@ -177329,7 +177329,7 @@ var init_parse = __esm({ "node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/
 			issues: []
 		}, ctx);
 		if (result instanceof Promise) result = await result;
-		return result.issues.length ? failure(_Err, result.issues, ctx) : {
+		return result.issues.length ? failure$1(_Err, result.issues, ctx) : {
 			success: true,
 			data: result.value
 		};
@@ -192719,7 +192719,7 @@ __export(schemas_exports2, {
 	string: () => string2,
 	stringFormat: () => stringFormat,
 	stringbool: () => stringbool,
-	success: () => success,
+	success: () => success$1,
 	superRefine: () => superRefine,
 	symbol: () => symbol15,
 	templateLiteral: () => templateLiteral,
@@ -193098,7 +193098,7 @@ function nonoptional(innerType, params) {
 		...util_exports.normalizeParams(params)
 	});
 }
-function success(innerType) {
+function success$1(innerType) {
 	return new ZodSuccess({
 		type: "success",
 		innerType
@@ -195332,7 +195332,7 @@ __export(external_exports, {
 	string: () => string2,
 	stringFormat: () => stringFormat,
 	stringbool: () => stringbool,
-	success: () => success,
+	success: () => success$1,
 	superRefine: () => superRefine,
 	symbol: () => symbol15,
 	templateLiteral: () => templateLiteral,
@@ -219528,7 +219528,7 @@ function assertKVScope(scope) {
 }
 var DEFAULT_KV_SCOPE;
 var KVScopeViolationError;
-var init_types4 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/kv/types.js"() {
+var init_types4 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/kv/types.js"() {
 	DEFAULT_KV_SCOPE = "account";
 	KVScopeViolationError = class extends Error {
 		constructor(message) {
@@ -219538,7 +219538,7 @@ var init_types4 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7
 	};
 } });
 var BrowserKVStore;
-var init_browser = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/kv/browser.js"() {
+var init_browser = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/kv/browser.js"() {
 	init_types4();
 	BrowserKVStore = class {
 		/** Brand: every value stays on the machine, so this may back another store's `device` scope. */
@@ -219613,7 +219613,7 @@ var ABSOLUTE_URL;
 var RESOLVABLE_SCHEMES;
 var SCHEME_AUTHORITY_FORM;
 var URL_CONTROL_CHARACTERS;
-var init_base_url = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/http/base-url.js"() {
+var init_base_url = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/http/base-url.js"() {
 	ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:/i;
 	RESOLVABLE_SCHEMES = /* @__PURE__ */ new Set(["http:", "https:"]);
 	SCHEME_AUTHORITY_FORM = /^https?:\/\//i;
@@ -219750,7 +219750,7 @@ function assertJsonValue(value, label) {
 	if (offender) throw new Error(`@openmaic/storage: ${label} is not a plain JSON value at '${offender.pointer || "/"}': ${offender.reason}`);
 }
 var LONE_SURROGATE;
-var init_json_value = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/runtime/json-value.js"() {
+var init_json_value = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/runtime/json-value.js"() {
 	LONE_SURROGATE = /[\uD800-\uDFFF]/u;
 } });
 function toHex(buffer) {
@@ -219769,7 +219769,7 @@ async function contentHashOf(data) {
 	};
 }
 var ObjectUrlCache;
-var init_blob = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/blob.js"() {
+var init_blob = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/blob.js"() {
 	ObjectUrlCache = class {
 		sameIdentity;
 		entries = /* @__PURE__ */ new Map();
@@ -219893,7 +219893,7 @@ var ASSET_ID_PREFIX;
 var ASSET_ID_ENTROPY_BYTES;
 var ALPHABET;
 var assetIdFactoryForTesting;
-var init_id2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/id.js"() {
+var init_id2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/id.js"() {
 	ASSET_ID_PREFIX = "ast_";
 	ASSET_ID_ENTROPY_BYTES = 16;
 	ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
@@ -219919,7 +219919,7 @@ var ASSETS;
 var BLOBS;
 var BY_CONTENT_HASH;
 var BrowserAssetStore;
-var init_browser_store = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/browser-store.js"() {
+var init_browser_store = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/browser-store.js"() {
 	init_blob();
 	init_id2();
 	ASSETS = "assets";
@@ -220214,7 +220214,7 @@ var AssetQuotaExceededError;
 var DEFAULT_RENDERABLE_TYPES;
 var EXCLUDED_RENDERABLE_TYPES;
 var ASSET_DESCRIPTOR_MEDIA_TYPE;
-var init_types5 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/types.js"() {
+var init_types5 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/types.js"() {
 	AssetNotFoundError = class extends Error {
 		code = "ASSET_NOT_FOUND";
 		constructor(message = "@openmaic/storage: no asset is stored under that id") {
@@ -220347,7 +220347,7 @@ var ASSET_BYTES_FILENAME;
 var DEFAULT_ASSET_CONTENT_TYPE;
 var HttpAssetStoreError;
 var HttpAssetStore;
-var init_http = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/http.js"() {
+var init_http = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/http.js"() {
 	init_base_url();
 	init_json_value();
 	init_blob();
@@ -220783,7 +220783,7 @@ function encodeJson(value, label) {
 }
 var REPLACEMENT;
 var KEY_COLLISION_SEPARATOR;
-var init_pg_json = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/pg-json.js"() {
+var init_pg_json = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/pg-json.js"() {
 	REPLACEMENT = "�";
 	KEY_COLLISION_SEPARATOR = "#";
 } });
@@ -220815,7 +220815,7 @@ var REGISTRY_WRITE_LOCK_TIMEOUT_SQL;
 var RegistryAssetNotFound;
 var RegistryAssetQuotaExceeded;
 var PgAssetStore;
-var init_pg = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/pg.js"() {
+var init_pg = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/pg.js"() {
 	init_blob();
 	init_id2();
 	init_types5();
@@ -221257,7 +221257,7 @@ function asUint8Array(value) {
 	return new Uint8Array(value.slice(0));
 }
 var PgAssetByteStore;
-var init_pg_bytes = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/pg-bytes.js"() {
+var init_pg_bytes = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/pg-bytes.js"() {
 	PgAssetByteStore = class {
 		queryable;
 		constructor(queryable) {
@@ -221520,7 +221520,7 @@ async function forgetDocumentAssetWithdrawal(queryable, stageId) {
 var STAGE_SCOPE_SCENE_ID;
 var NO_STAGE_SLOTS;
 var ENTRY_LOCK_SQL;
-var init_references = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/references.js"() {
+var init_references = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/references.js"() {
 	init_dist();
 	init_json_value();
 	STAGE_SCOPE_SCENE_ID = "";
@@ -221557,13 +221557,13 @@ function claimOwnershipSql(ownership) {
 	return `INSERT INTO ${ownership.table} (${ownership.stageId}, ${ownership.ownerId}) VALUES ($1, $2) ON CONFLICT (${ownership.stageId}) DO NOTHING RETURNING ${ownership.ownerId} AS owner_id`;
 }
 var IDENTIFIER;
-var init_ownership = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/document/ownership.js"() {
+var init_ownership = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/document/ownership.js"() {
 	IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
 } });
 var RuntimeAppendConflictError;
 var RuntimeSessionExistsError;
 var RuntimeStageNotFoundError;
-var init_types6 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/runtime/types.js"() {
+var init_types6 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/runtime/types.js"() {
 	RuntimeAppendConflictError = class extends Error {
 		sessionId;
 		expectedLastSeq;
@@ -221646,7 +221646,7 @@ var StorageLockUnavailableError;
 var RUNTIME_PG_SCHEMA;
 var DEFAULT_PAYLOAD_VALIDATORS;
 var PgRuntimeStore;
-var init_pg2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/runtime/pg.js"() {
+var init_pg2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/runtime/pg.js"() {
 	init_dist();
 	init_types6();
 	init_json_value();
@@ -221988,7 +221988,7 @@ function assertSignedUrlTtlWithinGrace(ttlSeconds, graceMs) {
 	if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds < 1 || !Number.isSafeInteger(graceMs) || graceMs < ttlSeconds * 1e3 * 10) throw new Error("@openmaic/storage: the signed URL lifetime must stay far below the collection grace period");
 }
 var DEFAULT_ASSET_COLLECTION_GRACE_MS;
-var init_collector = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/collector.js"() {
+var init_collector = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/collector.js"() {
 	DEFAULT_ASSET_COLLECTION_GRACE_MS = 36e5;
 } });
 function kvPersistStorage(kv, scope = DEFAULT_KV_SCOPE) {
@@ -221999,7 +221999,7 @@ function kvPersistStorage(kv, scope = DEFAULT_KV_SCOPE) {
 		removeItem: (name25) => kv.remove(name25, scope)
 	};
 }
-var init_persist = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/zustand/persist.js"() {
+var init_persist = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/zustand/persist.js"() {
 	init_types4();
 } });
 function isDocumentWriteRefusedError(error62) {
@@ -222013,7 +222013,7 @@ var DocumentNotFoundError;
 var REFUSAL_CODE;
 var DocumentWriteRefusedError;
 var DocumentFolderLimitError;
-var init_types7 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/document/types.js"() {
+var init_types7 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/document/types.js"() {
 	DocumentVersionError = class extends Error {
 		stageId;
 		kind;
@@ -222077,7 +222077,7 @@ function storePolicyResponse(error62) {
 }
 var BUSY_CODE;
 var StorageBusyError;
-var init_store_errors = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/store-errors.js"() {
+var init_store_errors = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/store-errors.js"() {
 	init_types7();
 	BUSY_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
 	StorageBusyError = class extends Error {
@@ -222117,7 +222117,7 @@ function reassembleDocument(stageRow, sceneRows, outlineRow) {
 	if (outlineRow) doc.outline = outlineRow.outline;
 	return doc;
 }
-var init_adapter = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/document/adapter.js"() {
+var init_adapter = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/document/adapter.js"() {
 	init_dist();
 } });
 function reqP2(request) {
@@ -222154,7 +222154,7 @@ var SCENES;
 var OUTLINES;
 var SCENES_BY_STAGE;
 var BrowserDocumentStore;
-var init_browser2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/document/browser.js"() {
+var init_browser2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/document/browser.js"() {
 	init_dist();
 	init_types7();
 	init_adapter();
@@ -222382,7 +222382,7 @@ function migrateDocument2(document2) {
 }
 var HttpDocumentStoreError;
 var HttpDocumentStore;
-var init_http2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/document/http.js"() {
+var init_http2 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/document/http.js"() {
 	init_dist();
 	init_json_value();
 	init_types7();
@@ -222693,7 +222693,7 @@ var DOCUMENT_PG_SCHEMA;
 var STAGE_REV_SQL;
 var SCENES_SQL;
 var PgDocumentStore;
-var init_pg3 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/document/pg.js"() {
+var init_pg3 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/document/pg.js"() {
 	init_dist();
 	init_adapter();
 	init_types7();
@@ -223572,7 +223572,7 @@ var SESSIONS_BY_LEARNER;
 var SESSIONS_BY_STAGE;
 var DEFAULT_PAYLOAD_VALIDATORS2;
 var BrowserRuntimeStore;
-var init_browser3 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/runtime/browser.js"() {
+var init_browser3 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/runtime/browser.js"() {
 	init_dist();
 	init_types6();
 	SESSIONS = "sessions";
@@ -223830,7 +223830,7 @@ var AGENT_SESSION_LIFECYCLE;
 var AgentSessionAccessError;
 var AgentSessionLeaseLostError;
 var AgentSessionEntryTreeError;
-var init_types8 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/agent-session/types.js"() {
+var init_types8 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/agent-session/types.js"() {
 	URL_CANDIDATE = /https?:\/\/[^\s<>"'`\u{FF0C}\u{3002}\u{FF01}\u{FF1F}\u{FF1B}\u{FF1A}\u{3001}]+/giu;
 	TRAILING_PROSE = /[\])}>,\u{FF0C}\u{3002}\u{FF01}\u{FF1F}\u{FF1B}\u{FF1A}\u{3001}.!?;:]+$/u;
 	AGENT_SESSION_LIFECYCLE = {
@@ -224030,7 +224030,7 @@ var USER_SKILL_CONTENT_MAX_BYTES;
 var USER_SKILL_NAME_PATTERN;
 var UserSkillError;
 var USER_SKILL_EDITABLE_PATHS;
-var init_types9 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/skill/types.js"() {
+var init_types9 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/skill/types.js"() {
 	USER_SKILL_LIMIT = 50;
 	USER_SKILL_CONTENT_MAX_BYTES = 65536;
 	USER_SKILL_NAME_PATTERN = /^my-[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -224100,7 +224100,7 @@ function skillNotFound(ref) {
 var DEFAULT_USER_SKILL_TABLE_NAMES;
 var MAX_SKILL_HANDLE_LENGTH;
 var PgUserSkillStore;
-var init_pg4 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/skill/pg.js"() {
+var init_pg4 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/skill/pg.js"() {
 	init_types9();
 	DEFAULT_USER_SKILL_TABLE_NAMES = { skills: "agent_user_skill" };
 	MAX_SKILL_HANDLE_LENGTH = 64;
@@ -224295,7 +224295,7 @@ var CROCKFORD_BASE32;
 var AGENT_SESSION_MATERIAL_KINDS;
 var MAX_MATERIAL_EXTRACTION_RETRIES;
 var AgentSessionMaterialError;
-var init_types10 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/material/types.js"() {
+var init_types10 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/material/types.js"() {
 	CROCKFORD_BASE32 = "0123456789abcdefghjkmnpqrstvwxyz";
 	AGENT_SESSION_MATERIAL_KINDS = [
 		"source",
@@ -224376,7 +224376,7 @@ function isUniqueViolation3(error62) {
 var DEFAULT_AGENT_SESSION_MATERIAL_TABLE_NAMES;
 var AGENT_SESSION_MATERIAL_PG_SCHEMA;
 var PgAgentSessionMaterialStore;
-var init_pg5 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/material/pg.js"() {
+var init_pg5 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/material/pg.js"() {
 	init_pg_json();
 	init_types10();
 	DEFAULT_AGENT_SESSION_MATERIAL_TABLE_NAMES = { materials: "agent_session_materials" };
@@ -224675,7 +224675,7 @@ CREATE INDEX IF NOT EXISTS agent_session_materials_extraction_queue_idx
 		}
 	};
 } });
-var init_dist8 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/index.js"() {
+var init_dist8 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/index.js"() {
 	init_browser();
 	init_browser_store();
 	init_http();
@@ -225276,7 +225276,6 @@ var LEGACY_SHARED_ASSET_PRINCIPAL;
 var OWNER_ASSET_PRINCIPAL_PREFIX;
 var LONE_SURROGATE2;
 var init_owner_assets = __esm({ "packages/openmaic-core/src/lib/persistence/owner-assets.ts"() {
-	"use strict";
 	init_dist8();
 	init_owner_merges();
 	LEGACY_SHARED_ASSET_PRINCIPAL = "shared";
@@ -225685,7 +225684,7 @@ var DEFAULT_MAX_ASSET_BYTES;
 var DEFAULT_MAX_ASSET_META_BYTES;
 var DEFAULT_MAX_ASSET_PARTS;
 var AssetHttpError;
-var init_asset = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/server/asset.js"() {
+var init_asset = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/server/asset.js"() {
 	init_collector();
 	init_types5();
 	init_store_errors();
@@ -225732,7 +225731,7 @@ async function readJsonObject(req, maxBodyBytes, errors) {
 	return body;
 }
 var DEFAULT_MAX_BODY_BYTES;
-var init_read_json = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/server/read-json.js"() {
+var init_read_json = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/server/read-json.js"() {
 	DEFAULT_MAX_BODY_BYTES = 33554432;
 } });
 function sendJson2(res, status, body, headers = {}) {
@@ -225752,7 +225751,7 @@ function validationFailure2(message, details) {
 function payloadTooLarge2(message) {
 	return new DocumentHttpError(413, "PAYLOAD_TOO_LARGE", message);
 }
-function readJson(req, maxBodyBytes) {
+function readJson$1(req, maxBodyBytes) {
 	return readJsonObject(req, maxBodyBytes, {
 		invalid: validationFailure2,
 		payloadTooLarge: payloadTooLarge2
@@ -225924,7 +225923,7 @@ async function route2(req, res, store2, options4) {
 	const stageId = parts[1];
 	assertAddressableSegment2(stageId);
 	if (parts.length === 2 && method === "PUT") {
-		const document2 = validateDocument(await readJson(req, maxBodyBytes), stageId, sceneValidator, stageValidator);
+		const document2 = validateDocument(await readJson$1(req, maxBodyBytes), stageId, sceneValidator, stageValidator);
 		try {
 			await store2.saveDocument(document2);
 		} catch (error62) {
@@ -225946,7 +225945,7 @@ async function route2(req, res, store2, options4) {
 		return;
 	}
 	if (parts.length === 3 && parts[2] === "stage" && method === "PUT") {
-		const stage = await readJson(req, maxBodyBytes);
+		const stage = await readJson$1(req, maxBodyBytes);
 		validationError(stageValidator(stage), `stage ${stage.id}`);
 		if (stage.id !== stageId) throw validationFailure2(`@openmaic/storage: stage ${JSON.stringify(stage.id)} does not belong to document ` + JSON.stringify(stageId));
 		assertJsonRequestValue(stage, `stage ${JSON.stringify(stage.id)}`);
@@ -225962,7 +225961,7 @@ async function route2(req, res, store2, options4) {
 		const sceneId = parts[3];
 		assertAddressableSegment2(sceneId);
 		if (method === "PUT") {
-			const scene = await readJson(req, maxBodyBytes);
+			const scene = await readJson$1(req, maxBodyBytes);
 			validationError(sceneValidator(scene), `scene ${scene.id}`);
 			assertStorableScene4(scene, stageId);
 			if (scene.id !== sceneId) throw validationFailure2("scene body id does not match the request path");
@@ -226010,7 +226009,7 @@ function createDocumentHttpHandler(store2, options4) {
 	};
 }
 var DocumentHttpError;
-var init_document = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/server/document.js"() {
+var init_document = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/server/document.js"() {
 	init_dist();
 	init_json_value();
 	init_types7();
@@ -226413,7 +226412,7 @@ function createStorageHttpHandler(runtimeStore, documentStore, options4) {
 }
 var RuntimeHttpError;
 var DEFAULT_PAYLOAD_VALIDATORS3;
-var init_server = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/server/index.js"() {
+var init_server = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/server/index.js"() {
 	init_dist();
 	init_json_value();
 	init_types6();
@@ -226522,7 +226521,7 @@ async function main() {
 	process.once("SIGINT", close2);
 	process.once("SIGTERM", close2);
 }
-var init_reference = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/server/reference.js"() {
+var init_reference = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/server/reference.js"() {
 	init_pg2();
 	init_server();
 	if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error62) => {
@@ -231201,7 +231200,7 @@ function isNotFound(error62) {
 var AWS_S3_CLIENT_PACKAGE;
 var AWS_S3_PRESIGNER_PACKAGE;
 var S3AssetByteStore;
-var init_s3_bytes = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/asset/s3-bytes.js"() {
+var init_s3_bytes = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/asset/s3-bytes.js"() {
 	AWS_S3_CLIENT_PACKAGE = "@aws-sdk/client-s3";
 	AWS_S3_PRESIGNER_PACKAGE = "@aws-sdk/s3-request-presigner";
 	S3AssetByteStore = class {
@@ -231815,7 +231814,7 @@ CREATE INDEX IF NOT EXISTS stage_meta_public_live_idx
 	};
 } });
 var scene_schema_default;
-var init_scene_schema = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+OpenM_0bd0afb1b6e446b9f388103475d1690a/node_modules/@openmaic/dsl/dist/schema/scene.schema.json"() {
+var init_scene_schema = __esm({ "node_modules/.pnpm/@openmaic+dsl@file+..+refer_f3bef33b9f5b24a99200387a1c0a5edf/node_modules/@openmaic/dsl/dist/schema/scene.schema.json"() {
 	scene_schema_default = {
 		$schema: "http://json-schema.org/draft-07/schema#",
 		$ref: "#/definitions/SerializedScene",
@@ -234816,7 +234815,7 @@ var init_server_provider = __esm({ "packages/openmaic-core/src/lib/persistence/s
 function sanitizePgText(value) {
 	return value.replace(/\u0000|[\uD800-\uDFFF]/gu, (character) => character === "\0" ? "" : "�");
 }
-var init_pg_text = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/pg-text.js"() {} });
+var init_pg_text = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/pg-text.js"() {} });
 function quoteIdentifier3(identifier2) {
 	if (!/^[a-z_][a-z0-9_]*$/.test(identifier2)) throw new Error(`@openmaic/storage: invalid agent-session table name ${JSON.stringify(identifier2)}`);
 	return `"${identifier2}"`;
@@ -234894,7 +234893,7 @@ var SESSION_COLUMNS;
 var savepointSerial;
 var PgAgentSessionStore;
 var PgAgentSessionEntryTreeHandle;
-var init_pg6 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/agent-session/pg.js"() {
+var init_pg6 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/agent-session/pg.js"() {
 	init_pg3();
 	init_pg_json();
 	init_pg_text();
@@ -287125,7 +287124,7 @@ var init_esm3 = __esm({ "node_modules/.pnpm/jsonrepair@3.15.0/node_modules/jsonr
 	init_jsonrepair();
 } });
 var noopGenerationLogger;
-var init_logger2 = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/logger.js"() {
+var init_logger2 = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/logger.js"() {
 	noopGenerationLogger = {
 		debug: () => void 0,
 		info: () => void 0,
@@ -287299,7 +287298,7 @@ function tryParseJson(jsonStr, options4 = {}) {
 		return null;
 	}
 }
-var init_json_repair = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/json-repair.js"() {
+var init_json_repair = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/json-repair.js"() {
 	init_esm3();
 	init_logger2();
 } });
@@ -287643,7 +287642,7 @@ var DEFAULT_MAX_DELAY_MS2;
 var RETRYABLE_STATUS_CODES;
 var NON_RETRYABLE_STATUS_CODES;
 var defaultSleep;
-var init_generation_retry = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/generation-retry.js"() {
+var init_generation_retry = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/generation-retry.js"() {
 	DEFAULT_MAX_RETRIES2 = 5;
 	DEFAULT_BASE_DELAY_MS = 1e3;
 	DEFAULT_MAX_DELAY_MS2 = 16e3;
@@ -287678,7 +287677,7 @@ var init_generation_retry = __esm({ "node_modules/.pnpm/@openmaic+generation@fil
 	});
 } });
 var MAX_ENGAGEMENT_EVENTS;
-var init_engagement = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/pbl/operations/kernel/engagement.js"() {
+var init_engagement = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/pbl/operations/kernel/engagement.js"() {
 	MAX_ENGAGEMENT_EVENTS = 500;
 } });
 function mintRuntimeEventId() {
@@ -287723,13 +287722,13 @@ function appendStatusChangedRuntimeEvent(project, args) {
 	});
 }
 var MAX_RUNTIME_EVENTS;
-var init_runtime_events = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/pbl/operations/kernel/runtime-events.js"() {
+var init_runtime_events = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/pbl/operations/kernel/runtime-events.js"() {
 	MAX_RUNTIME_EVENTS = 500;
 } });
 function trimmedPBLText(value) {
 	return typeof value === "string" ? value.trim() : "";
 }
-var init_readers = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/pbl/readers.js"() {} });
+var init_readers = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/pbl/readers.js"() {} });
 function taskCompletionReadyText(language) {
 	switch (language) {
 		case "zh-CN": return "这个任务已经完成了。如果你准备好了，也没有其他问题了，请点击左侧当前任务里的「完成」按钮进入下一步。";
@@ -287740,7 +287739,7 @@ function taskCompletionReadyText(language) {
 		default: return "This task is complete. When you are ready and have no other questions, click Done on the current task in the left sidebar to move on.";
 	}
 }
-var init_task_completion = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/pbl/operations/kernel/task-completion.js"() {
+var init_task_completion = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/pbl/operations/kernel/task-completion.js"() {
 	new Set([
 		"zh-CN",
 		"zh-TW",
@@ -287860,7 +287859,7 @@ function normalizeScenario(project) {
 	return changed;
 }
 var PBL_SIMULATOR_AGENT_ID;
-var init_progress = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/pbl/operations/kernel/progress.js"() {
+var init_progress = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/pbl/operations/kernel/progress.js"() {
 	init_runtime_events();
 	PBL_SIMULATOR_AGENT_ID = "simulator";
 } });
@@ -288114,7 +288113,7 @@ var DEFAULT_TIER;
 var WEIGHT_CAPS;
 var KEYWORDS_ADVANCED;
 var KEYWORDS_BEGINNER;
-var init_proficiency = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/pbl/operations/kernel/proficiency.js"() {
+var init_proficiency = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/pbl/operations/kernel/proficiency.js"() {
 	MAX_SIGNAL_HISTORY = 50;
 	TIER_BOUNDS = {
 		/** Conservative enter-advanced threshold. The original hysteresis
@@ -301770,7 +301769,7 @@ function normalizeHeaders4(init) {
 var HttpRuntimeStoreError;
 var OPTIONAL_RECORD_ANCHORS;
 var HttpRuntimeStore;
-var init_http3 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+O_a375c7ca1bf7b35b845eb3d4e20ab60e/node_modules/@openmaic/storage/dist/runtime/http.js"() {
+var init_http3 = __esm({ "node_modules/.pnpm/@openmaic+storage@file+..+r_7db44654f176f4d68d1cb0a867b6f28b/node_modules/@openmaic/storage/dist/runtime/http.js"() {
 	init_dist();
 	init_types6();
 	init_json_value();
@@ -301986,7 +301985,6 @@ var resolutionStarted3;
 var concreteStoreHandedOut;
 var resetHooks3;
 var init_asset_pool_config = __esm({ "packages/openmaic-core/src/lib/media/asset-pool-config.ts"() {
-	"use strict";
 	resolutionStarted3 = false;
 	concreteStoreHandedOut = false;
 	resetHooks3 = [];
@@ -302535,6 +302533,7 @@ var fallbackWriter;
 var RuntimeStorageLockAcquisitionTimeoutError;
 var withChatStorageSharedLock;
 var init_chat_storage_lock = __esm({ "packages/openmaic-core/src/lib/utils/chat-storage-lock.ts"() {
+	"use strict";
 	CHAT_STORAGE_GLOBAL_LOCK = "openmaic:chat-storage:all";
 	DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS = 5e3;
 	fallbackWaiters = [];
@@ -305166,7 +305165,6 @@ var inFlightPblSessions;
 var inFlightPblDrains;
 var activePblDrainWork;
 var init_drain = __esm({ "packages/openmaic-core/src/lib/pbl/v2/runtime/drain.ts"() {
-	"use strict";
 	init_dist8();
 	init_learner_key();
 	init_store3();
@@ -306035,6 +306033,7 @@ function elementSlot(kind, element, elementIndex, key5) {
 	};
 }
 var init_slide_media_slots2 = __esm({ "packages/openmaic-core/src/lib/media/slide-media-slots.ts"() {
+	"use strict";
 	init_dist();
 } });
 function slidesOfScene(scene) {
@@ -309370,7 +309369,7 @@ var init_store3 = __esm({ "packages/openmaic-core/src/lib/runtime/store.ts"() {
 	});
 	STAGE_RUNTIME_DELETE_TIMEOUT_MS = 5e3;
 } });
-var init_browser4 = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._360b2c124e7cb1190f9473f9155927d5/node_modules/@openmaic/generation/dist/browser.js"() {
+var init_browser4 = __esm({ "node_modules/.pnpm/@openmaic+generation@file+._3f46bec46af69a4f7ecb26154491019c/node_modules/@openmaic/generation/dist/browser.js"() {
 	init_engagement();
 	init_proficiency();
 	init_progress();
@@ -355827,6 +355826,13 @@ async function generateClassroom(input2, options4) {
 			}
 		} else log49.warn("enableWebSearch is true but no web search API key configured, skipping web search");
 	}
+	const externalContext = input2.externalContext?.trim();
+	if (externalContext) {
+		researchContext = researchContext ? `${researchContext}
+
+${externalContext}` : externalContext;
+		log49.info(`Merged external retrieval context (${externalContext.length} chars)`);
+	}
 	await options4.onProgress?.({
 		step: "generating_outlines",
 		progress: 15,
@@ -356228,7 +356234,8 @@ async function POST8(req) {
 			...rawBody.enableImageGeneration != null ? { enableImageGeneration: rawBody.enableImageGeneration } : {},
 			...rawBody.enableVideoGeneration != null ? { enableVideoGeneration: rawBody.enableVideoGeneration } : {},
 			...rawBody.enableTTS != null ? { enableTTS: rawBody.enableTTS } : {},
-			...rawBody.agentMode ? { agentMode: rawBody.agentMode } : {}
+			...rawBody.agentMode ? { agentMode: rawBody.agentMode } : {},
+			...typeof rawBody.externalContext === "string" && rawBody.externalContext !== "" ? { externalContext: rawBody.externalContext } : {}
 		};
 		const { requirement } = body;
 		if (!requirement) return apiError("MISSING_REQUIRED_FIELD", 400, "Missing required field: requirement");
@@ -359120,314 +359127,157 @@ function createOpenmaicCoreHandler() {
 	};
 }
 var name24 = "openmaic:core";
-var provide$1 = "openmaic.core";
-function apply$2(ctx) {
+var provide$2 = "openmaic.core";
+function apply$3(ctx) {
 	ctx.provide("openmaic.core", { handler: createOpenmaicCoreHandler() });
 }
 //#endregion
-//#region node_modules/.pnpm/object-assign@4.1.1/node_modules/object-assign/index.js
-/*
-object-assign
-(c) Sindre Sorhus
-@license MIT
+//#region packages/kb/src/config.ts
+/**
+* KB 插件配置：全部可由环境变量提供，无凭据、无明文。
+*
+* 与 `packages/openmaic-core` 的 web search 配置一样，本插件不要求 API Key 即可
+* 工作——内置检索引擎是纯本地词法检索。
+*
+* @module kb/config
 */
-var require_object_assign = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var getOwnPropertySymbols = Object.getOwnPropertySymbols;
-	var hasOwnProperty = Object.prototype.hasOwnProperty;
-	var propIsEnumerable = Object.prototype.propertyIsEnumerable;
-	function toObject(val) {
-		if (val === null || val === void 0) throw new TypeError("Object.assign cannot be called with null or undefined");
-		return Object(val);
-	}
-	function shouldUseNative() {
-		try {
-			if (!Object.assign) return false;
-			var test1 = /* @__PURE__ */ new String("abc");
-			test1[5] = "de";
-			if (Object.getOwnPropertyNames(test1)[0] === "5") return false;
-			var test2 = {};
-			for (var i = 0; i < 10; i++) test2["_" + String.fromCharCode(i)] = i;
-			if (Object.getOwnPropertyNames(test2).map(function(n) {
-				return test2[n];
-			}).join("") !== "0123456789") return false;
-			var test3 = {};
-			"abcdefghijklmnopqrst".split("").forEach(function(letter) {
-				test3[letter] = letter;
-			});
-			if (Object.keys(Object.assign({}, test3)).join("") !== "abcdefghijklmnopqrst") return false;
-			return true;
-		} catch (err) {
-			return false;
-		}
-	}
-	module.exports = shouldUseNative() ? Object.assign : function(target, source) {
-		var from;
-		var to = toObject(target);
-		var symbols;
-		for (var s = 1; s < arguments.length; s++) {
-			from = Object(arguments[s]);
-			for (var key in from) if (hasOwnProperty.call(from, key)) to[key] = from[key];
-			if (getOwnPropertySymbols) {
-				symbols = getOwnPropertySymbols(from);
-				for (var i = 0; i < symbols.length; i++) if (propIsEnumerable.call(from, symbols[i])) to[symbols[i]] = from[symbols[i]];
-			}
-		}
-		return to;
+/** 正整数环境变量；缺省、非数字或非正数时取回落值。 */
+function intFromEnv(name, fallback) {
+	const raw = process.env[name];
+	if (raw === void 0 || raw.trim() === "") return fallback;
+	const value = Number.parseInt(raw, 10);
+	return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+/** 布尔环境变量：`true` / `1` 为真，其余为假。 */
+function boolFromEnv(name, fallback) {
+	const raw = process.env[name];
+	if (raw === void 0 || raw.trim() === "") return fallback;
+	return raw === "true" || raw === "1";
+}
+/**
+* 解析配置。显式传入的字段优先于环境变量。
+*
+* `OPENTEACH_KB_DIR` 缺省为 `<cwd>/data/kb`，与 db 插件的
+* `<cwd>/data/openteach.db` 落在同一个数据目录下。
+*/
+function resolveKbConfig(overrides = {}) {
+	const dir = overrides.dir ?? process.env.OPENTEACH_KB_DIR ?? join("data", "kb");
+	const chunkSize = overrides.chunkSize ?? intFromEnv("OPENTEACH_KB_CHUNK_SIZE", 800);
+	return {
+		dir: isAbsolute(dir) ? dir : join(process.cwd(), dir),
+		chunkSize,
+		chunkOverlap: Math.min(overrides.chunkOverlap ?? intFromEnv("OPENTEACH_KB_CHUNK_OVERLAP", 120), Math.floor(chunkSize / 2)),
+		topK: overrides.topK ?? intFromEnv("OPENTEACH_KB_TOP_K", 6),
+		maxQueries: overrides.maxQueries ?? intFromEnv("OPENTEACH_KB_MAX_QUERIES", 3),
+		smartRetrieval: overrides.smartRetrieval ?? boolFromEnv("OPENTEACH_KB_SMART_RETRIEVAL", false)
 	};
-}));
+}
 //#endregion
-//#region node_modules/.pnpm/vary@1.1.2/node_modules/vary/index.js
-/*!
-* vary
-* Copyright(c) 2014-2017 Douglas Christopher Wilson
-* MIT Licensed
+//#region packages/kb/src/engine.ts
+/** BM25 参数：词频饱和系数与长度归一化强度（业界常用默认值）。 */
+const K1 = 1.2;
+const B = .75;
+/** CJK 统一表意文字及扩展区的码点范围。 */
+function isCjk(code) {
+	return code >= 13312 && code <= 19903 || code >= 19968 && code <= 40959 || code >= 63744 && code <= 64255;
+}
+/** 分词：ASCII 单词 + CJK 二元组。 */
+function tokenize(text) {
+	const tokens = [];
+	const lowered = text.toLowerCase();
+	let ascii = "";
+	let cjk = [];
+	const flushAscii = () => {
+		if (ascii.length >= 2) tokens.push(ascii);
+		ascii = "";
+	};
+	const flushCjk = () => {
+		for (let i = 0; i < cjk.length; i += 1) {
+			tokens.push(String.fromCharCode(cjk[i]));
+			if (i + 1 < cjk.length) tokens.push(String.fromCharCode(cjk[i], cjk[i + 1]));
+		}
+		cjk = [];
+	};
+	for (const char of lowered) {
+		const code = char.codePointAt(0) ?? 0;
+		if (isCjk(code)) {
+			flushAscii();
+			cjk.push(code);
+			continue;
+		}
+		flushCjk();
+		if (/[0-9a-z]/.test(char)) ascii += char;
+		else flushAscii();
+	}
+	flushAscii();
+	flushCjk();
+	return tokens;
+}
+/** 统计词频与词项总数。 */
+function buildTermFrequencies(tokens) {
+	const terms = {};
+	for (const token of tokens) terms[token] = (terms[token] ?? 0) + 1;
+	return {
+		terms,
+		length: tokens.length
+	};
+}
+/**
+* 在一组分块上做 BM25 检索，返回得分降序的命中。
+*
+* 词频与长度已随分块预计算；查询时只需算文档频率（df）与平均长度，因此不需要
+* 常驻的倒排索引结构。
 */
-var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/**
-	* Module exports.
-	*/
-	module.exports = vary;
-	module.exports.append = append;
-	/**
-	* RegExp to match field-name in RFC 7230 sec 3.2
-	*
-	* field-name    = token
-	* token         = 1*tchar
-	* tchar         = "!" / "#" / "$" / "%" / "&" / "'" / "*"
-	*               / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
-	*               / DIGIT / ALPHA
-	*               ; any VCHAR, except delimiters
-	*/
-	var FIELD_NAME_REGEXP = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
-	/**
-	* Append a field to a vary header.
-	*
-	* @param {String} header
-	* @param {String|Array} field
-	* @return {String}
-	* @public
-	*/
-	function append(header, field) {
-		if (typeof header !== "string") throw new TypeError("header argument is required");
-		if (!field) throw new TypeError("field argument is required");
-		var fields = !Array.isArray(field) ? parse(String(field)) : field;
-		for (var j = 0; j < fields.length; j++) if (!FIELD_NAME_REGEXP.test(fields[j])) throw new TypeError("field argument contains an invalid header name");
-		if (header === "*") return header;
-		var val = header;
-		var vals = parse(header.toLowerCase());
-		if (fields.indexOf("*") !== -1 || vals.indexOf("*") !== -1) return "*";
-		for (var i = 0; i < fields.length; i++) {
-			var fld = fields[i].toLowerCase();
-			if (vals.indexOf(fld) === -1) {
-				vals.push(fld);
-				val = val ? val + ", " + fields[i] : fields[i];
-			}
+function searchChunks(query, chunks, documents, topK) {
+	const queryTerms = [...new Set(tokenize(query))];
+	if (queryTerms.length === 0 || chunks.length === 0) return [];
+	const documentFrequency = /* @__PURE__ */ new Map();
+	let totalLength = 0;
+	for (const chunk of chunks) {
+		totalLength += chunk.length;
+		for (const term of queryTerms) if (chunk.terms[term] !== void 0) documentFrequency.set(term, (documentFrequency.get(term) ?? 0) + 1);
+	}
+	const averageLength = totalLength / chunks.length || 1;
+	const hits = [];
+	for (const chunk of chunks) {
+		let score = 0;
+		for (const term of queryTerms) {
+			const frequency = chunk.terms[term];
+			if (frequency === void 0) continue;
+			const df = documentFrequency.get(term) ?? 0;
+			const idf = Math.log(1 + (chunks.length - df + .5) / (df + .5));
+			const saturation = frequency / (frequency + K1 * (.25 + B * chunk.length / averageLength));
+			score += idf * saturation * 2.2;
 		}
-		return val;
+		if (score <= 0) continue;
+		const document = documents.get(chunk.documentId);
+		hits.push({
+			chunkId: chunk.id,
+			documentId: chunk.documentId,
+			title: document?.title ?? "未命名文档",
+			source: document?.source ?? "",
+			score,
+			text: chunk.text
+		});
 	}
-	/**
-	* Parse a vary header into an array.
-	*
-	* @param {String} header
-	* @return {Array}
-	* @private
-	*/
-	function parse(header) {
-		var end = 0;
-		var list = [];
-		var start = 0;
-		for (var i = 0, len = header.length; i < len; i++) switch (header.charCodeAt(i)) {
-			case 32:
-				if (start === end) start = end = i + 1;
-				break;
-			case 44:
-				list.push(header.substring(start, end));
-				start = end = i + 1;
-				break;
-			default: end = i + 1;
-		}
-		list.push(header.substring(start, end));
-		return list;
-	}
-	/**
-	* Mark that a request is varied on a header field.
-	*
-	* @param {Object} res
-	* @param {String|Array} field
-	* @public
-	*/
-	function vary(res, field) {
-		if (!res || !res.getHeader || !res.setHeader) throw new TypeError("res argument is required");
-		var val = res.getHeader("Vary") || "";
-		if (val = append(Array.isArray(val) ? val.join(", ") : String(val), field)) res.setHeader("Vary", val);
-	}
-}));
+	hits.sort((a, b) => b.score - a.score);
+	return hits.slice(0, topK);
+}
 //#endregion
-//#region node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js
-var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	(function() {
-		"use strict";
-		var assign = require_object_assign();
-		var vary = require_vary();
-		var defaults = {
-			origin: "*",
-			methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-			preflightContinue: false,
-			optionsSuccessStatus: 204
-		};
-		function isString(s) {
-			return typeof s === "string" || s instanceof String;
+//#region packages/kb/src/format.ts
+function formatKbResultsAsContext(result) {
+	const lines = [];
+	if (result.answer.trim() !== "") lines.push(result.answer.trim(), "");
+	if (result.hits.length > 0) {
+		lines.push(`以下是本地知识库「${result.kbName}」中检索到的参考资料：`, "");
+		for (const hit of result.hits) {
+			const source = hit.source === "" ? hit.title : hit.source;
+			lines.push(`- 【${hit.title}】（来源：${source}）`);
+			lines.push(`  ${hit.text.replace(/\n/g, "\n  ")}`);
 		}
-		function isOriginAllowed(origin, allowedOrigin) {
-			if (Array.isArray(allowedOrigin)) {
-				for (var i = 0; i < allowedOrigin.length; ++i) if (isOriginAllowed(origin, allowedOrigin[i])) return true;
-				return false;
-			} else if (isString(allowedOrigin)) return origin === allowedOrigin;
-			else if (allowedOrigin instanceof RegExp) return allowedOrigin.test(origin);
-			else return !!allowedOrigin;
-		}
-		function configureOrigin(options, req) {
-			var requestOrigin = req.headers.origin, headers = [], isAllowed;
-			if (!options.origin || options.origin === "*") headers.push([{
-				key: "Access-Control-Allow-Origin",
-				value: "*"
-			}]);
-			else if (isString(options.origin)) {
-				headers.push([{
-					key: "Access-Control-Allow-Origin",
-					value: options.origin
-				}]);
-				headers.push([{
-					key: "Vary",
-					value: "Origin"
-				}]);
-			} else {
-				isAllowed = isOriginAllowed(requestOrigin, options.origin);
-				headers.push([{
-					key: "Access-Control-Allow-Origin",
-					value: isAllowed ? requestOrigin : false
-				}]);
-				headers.push([{
-					key: "Vary",
-					value: "Origin"
-				}]);
-			}
-			return headers;
-		}
-		function configureMethods(options) {
-			var methods = options.methods;
-			if (methods.join) methods = options.methods.join(",");
-			return {
-				key: "Access-Control-Allow-Methods",
-				value: methods
-			};
-		}
-		function configureCredentials(options) {
-			if (options.credentials === true) return {
-				key: "Access-Control-Allow-Credentials",
-				value: "true"
-			};
-			return null;
-		}
-		function configureAllowedHeaders(options, req) {
-			var allowedHeaders = options.allowedHeaders || options.headers;
-			var headers = [];
-			if (!allowedHeaders) {
-				allowedHeaders = req.headers["access-control-request-headers"];
-				headers.push([{
-					key: "Vary",
-					value: "Access-Control-Request-Headers"
-				}]);
-			} else if (allowedHeaders.join) allowedHeaders = allowedHeaders.join(",");
-			if (allowedHeaders && allowedHeaders.length) headers.push([{
-				key: "Access-Control-Allow-Headers",
-				value: allowedHeaders
-			}]);
-			return headers;
-		}
-		function configureExposedHeaders(options) {
-			var headers = options.exposedHeaders;
-			if (!headers) return null;
-			else if (headers.join) headers = headers.join(",");
-			if (headers && headers.length) return {
-				key: "Access-Control-Expose-Headers",
-				value: headers
-			};
-			return null;
-		}
-		function configureMaxAge(options) {
-			var maxAge = (typeof options.maxAge === "number" || options.maxAge) && options.maxAge.toString();
-			if (maxAge && maxAge.length) return {
-				key: "Access-Control-Max-Age",
-				value: maxAge
-			};
-			return null;
-		}
-		function applyHeaders(headers, res) {
-			for (var i = 0, n = headers.length; i < n; i++) {
-				var header = headers[i];
-				if (header) {
-					if (Array.isArray(header)) applyHeaders(header, res);
-					else if (header.key === "Vary" && header.value) vary(res, header.value);
-					else if (header.value) res.setHeader(header.key, header.value);
-				}
-			}
-		}
-		function cors(options, req, res, next) {
-			var headers = [];
-			if ((req.method && req.method.toUpperCase && req.method.toUpperCase()) === "OPTIONS") {
-				headers.push(configureOrigin(options, req));
-				headers.push(configureCredentials(options));
-				headers.push(configureMethods(options));
-				headers.push(configureAllowedHeaders(options, req));
-				headers.push(configureMaxAge(options));
-				headers.push(configureExposedHeaders(options));
-				applyHeaders(headers, res);
-				if (options.preflightContinue) next();
-				else {
-					res.statusCode = options.optionsSuccessStatus;
-					res.setHeader("Content-Length", "0");
-					res.end();
-				}
-			} else {
-				headers.push(configureOrigin(options, req));
-				headers.push(configureCredentials(options));
-				headers.push(configureExposedHeaders(options));
-				applyHeaders(headers, res);
-				next();
-			}
-		}
-		function middlewareWrapper(o) {
-			var optionsCallback = null;
-			if (typeof o === "function") optionsCallback = o;
-			else optionsCallback = function(req, cb) {
-				cb(null, o);
-			};
-			return function corsMiddleware(req, res, next) {
-				optionsCallback(req, function(err, options) {
-					if (err) next(err);
-					else {
-						var corsOptions = assign({}, defaults, options);
-						var originCallback = null;
-						if (corsOptions.origin && typeof corsOptions.origin === "function") originCallback = corsOptions.origin;
-						else if (corsOptions.origin) originCallback = function(origin, cb) {
-							cb(null, corsOptions.origin);
-						};
-						if (originCallback) originCallback(req.headers.origin, function(err2, origin) {
-							if (err2 || !origin) next(err2);
-							else {
-								corsOptions.origin = origin;
-								cors(corsOptions, req, res, next);
-							}
-						});
-						else next();
-					}
-				});
-			};
-		}
-		module.exports = middlewareWrapper;
-	})();
-}));
+	}
+	return lines.join("\n").trim();
+}
 //#endregion
 //#region node_modules/.pnpm/depd@2.0.0/node_modules/depd/index.js
 var require_depd = /* @__PURE__ */ __commonJSMin(((exports, module) => {
@@ -369518,7 +369368,7 @@ var require_extend_node = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 }));
 //#endregion
 //#region node_modules/.pnpm/iconv-lite@0.4.24/node_modules/iconv-lite/lib/index.js
-var require_lib$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var Buffer = require_safer().Buffer;
 	var bomHandling = require_bom_handling();
 	var iconv = module.exports;
@@ -369662,7 +369512,7 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var asyncHooks = tryRequireAsyncHooks$1();
 	var bytes = require_bytes();
 	var createError = require_http_errors();
-	var iconv = require_lib$1();
+	var iconv = require_lib$2();
 	var unpipe = require_unpipe();
 	/**
 	* Module exports.
@@ -370100,7 +369950,7 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var createError = require_http_errors();
 	var destroy = require_destroy();
 	var getBody = require_raw_body();
-	var iconv = require_lib$1();
+	var iconv = require_lib$2();
 	var onFinished = require_on_finished();
 	var unpipe = require_unpipe();
 	var zlib = __require$1("zlib");
@@ -380096,7 +379946,7 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 }));
 //#endregion
 //#region node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/index.js
-var require_lib = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+var require_lib$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var stringify = require_stringify();
 	var parse = require_parse();
 	module.exports = {
@@ -380267,7 +380117,7 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (mod !== void 0) return mod.parse;
 		switch (name) {
 			case "qs":
-				mod = require_lib();
+				mod = require_lib$1();
 				break;
 			case "querystring": mod = __require$1("querystring");
 		}
@@ -381894,7 +381744,7 @@ var require_query = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	*/
 	var merge = require_utils_merge();
 	var parseUrl = require_parseurl();
-	var qs = require_lib();
+	var qs = require_lib$1();
 	/**
 	* @param {Object} options
 	* @return {Function}
@@ -385680,7 +385530,7 @@ var require_utils = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var mime = require_send().mime;
 	var etag = require_etag();
 	var proxyaddr = require_proxy_addr();
-	var qs = require_lib();
+	var qs = require_lib$1();
 	var querystring = __require$1("querystring");
 	/**
 	* Return strong ETag for `body`.
@@ -387894,6 +387744,93 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	}
 }));
 //#endregion
+//#region node_modules/.pnpm/vary@1.1.2/node_modules/vary/index.js
+/*!
+* vary
+* Copyright(c) 2014-2017 Douglas Christopher Wilson
+* MIT Licensed
+*/
+var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/**
+	* Module exports.
+	*/
+	module.exports = vary;
+	module.exports.append = append;
+	/**
+	* RegExp to match field-name in RFC 7230 sec 3.2
+	*
+	* field-name    = token
+	* token         = 1*tchar
+	* tchar         = "!" / "#" / "$" / "%" / "&" / "'" / "*"
+	*               / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
+	*               / DIGIT / ALPHA
+	*               ; any VCHAR, except delimiters
+	*/
+	var FIELD_NAME_REGEXP = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+	/**
+	* Append a field to a vary header.
+	*
+	* @param {String} header
+	* @param {String|Array} field
+	* @return {String}
+	* @public
+	*/
+	function append(header, field) {
+		if (typeof header !== "string") throw new TypeError("header argument is required");
+		if (!field) throw new TypeError("field argument is required");
+		var fields = !Array.isArray(field) ? parse(String(field)) : field;
+		for (var j = 0; j < fields.length; j++) if (!FIELD_NAME_REGEXP.test(fields[j])) throw new TypeError("field argument contains an invalid header name");
+		if (header === "*") return header;
+		var val = header;
+		var vals = parse(header.toLowerCase());
+		if (fields.indexOf("*") !== -1 || vals.indexOf("*") !== -1) return "*";
+		for (var i = 0; i < fields.length; i++) {
+			var fld = fields[i].toLowerCase();
+			if (vals.indexOf(fld) === -1) {
+				vals.push(fld);
+				val = val ? val + ", " + fields[i] : fields[i];
+			}
+		}
+		return val;
+	}
+	/**
+	* Parse a vary header into an array.
+	*
+	* @param {String} header
+	* @return {Array}
+	* @private
+	*/
+	function parse(header) {
+		var end = 0;
+		var list = [];
+		var start = 0;
+		for (var i = 0, len = header.length; i < len; i++) switch (header.charCodeAt(i)) {
+			case 32:
+				if (start === end) start = end = i + 1;
+				break;
+			case 44:
+				list.push(header.substring(start, end));
+				start = end = i + 1;
+				break;
+			default: end = i + 1;
+		}
+		list.push(header.substring(start, end));
+		return list;
+	}
+	/**
+	* Mark that a request is varied on a header field.
+	*
+	* @param {Object} res
+	* @param {String|Array} field
+	* @public
+	*/
+	function vary(res, field) {
+		if (!res || !res.getHeader || !res.setHeader) throw new TypeError("res argument is required");
+		var val = res.getHeader("Vary") || "";
+		if (val = append(Array.isArray(val) ? val.join(", ") : String(val), field)) res.setHeader("Vary", val);
+	}
+}));
+//#endregion
 //#region node_modules/.pnpm/express@4.22.3/node_modules/express/lib/response.js
 /*!
 * express
@@ -388970,8 +388907,6 @@ var require_express$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		});
 	});
 }));
-//#endregion
-//#region node_modules/.pnpm/express@4.22.3/node_modules/express/index.js
 /*!
 * express
 * Copyright(c) 2009-2013 TJ Holowaychuk
@@ -388979,13 +388914,708 @@ var require_express$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * Copyright(c) 2014-2015 Douglas Christopher Wilson
 * MIT Licensed
 */
-var require_express = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+//#endregion
+//#region packages/kb/src/chunking.ts
+var import_express = /* @__PURE__ */ __toESM$1((/* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = require_express$1();
+})))(), 1);
+/** 句子边界：中英文句末标点、分号与换行。 */
+const SENTENCE_BOUNDARY = /([。！？!?；;]+|\n+)/;
+/** 归一化空白：统一换行、压缩连续空行、去掉行尾空格。 */
+function normalize(text) {
+	return text.replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+/** 把文本切成句子级片段（保留标点与换行分隔符）。 */
+function splitSentences(text) {
+	const parts = text.split(SENTENCE_BOUNDARY);
+	const sentences = [];
+	for (let i = 0; i < parts.length; i += 2) {
+		const sentence = ((parts[i] ?? "") + (parts[i + 1] ?? "")).trim();
+		if (sentence !== "") sentences.push(sentence);
+	}
+	return sentences;
+}
+/** 句子超长时按目标长度硬切。 */
+function hardSplit(sentence, size) {
+	if (sentence.length <= size) return [sentence];
+	const pieces = [];
+	for (let start = 0; start < sentence.length; start += size) pieces.push(sentence.slice(start, start + size));
+	return pieces;
+}
+/**
+* 切分为块。
+*
+* @param text 归一化前的原文。
+* @param size 单块目标字符数。
+* @param overlap 相邻块的重叠字符数；调用方需保证 `0 <= overlap < size`。
+*/
+function chunkText(text, size, overlap) {
+	const normalized = normalize(text);
+	if (normalized === "") return [];
+	const units = splitSentences(normalized).flatMap((sentence) => hardSplit(sentence, size));
+	const chunks = [];
+	let current = "";
+	for (const unit of units) {
+		if (current !== "" && current.length + unit.length + 1 > size) {
+			chunks.push(current);
+			current = overlap > 0 ? current.slice(-overlap) : "";
+		}
+		current = current === "" ? unit : `${current}\n${unit}`;
+	}
+	if (current.trim() !== "") chunks.push(current);
+	return chunks.map((chunk, index) => ({
+		index,
+		text: chunk
+	}));
+}
+//#endregion
+//#region packages/kb/src/store.ts
+/**
+* KB 存储：文件系统按知识库分目录落盘。
+*
+* 选文件而非 SQLite，是为了让本插件与 db 插件完全解耦——它可以独立装卸、独立
+* 配置存储目录（`OPENTEACH_KB_DIR`），不要求宿主先装配数据库；同时零原生依赖。
+*
+* 目录结构（`<dir>/<kbName>/`）：
+* - `documents.json`：文档元数据 + 全文；
+* - `chunks.json`：切分后的块与预计算词频。
+*
+* 写入用「临时文件 + rename」保证原子性，避免进程中断留下半截 JSON。
+*
+* @module kb/store
+*/
+/** 知识库名只允许这些字符：它直接参与路径拼接，必须挡住路径穿越。 */
+const KB_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+function isValidKbName(kbName) {
+	return KB_NAME_PATTERN.test(kbName);
+}
+function assertKbName(kbName) {
+	if (!isValidKbName(kbName)) throw new Error(`知识库名非法（仅允许字母/数字/下划线/连字符，1-64 位）："${kbName}"`);
+	return kbName;
+}
+/** 读取 JSON；文件不存在或内容损坏时返回回落值（不阻断调用方）。 */
+async function readJson(path, fallback) {
+	try {
+		return JSON.parse(await readFile(path, "utf8"));
+	} catch {
+		return fallback;
+	}
+}
+/** 原子写入 JSON。 */
+async function writeJson(path, value) {
+	const temporary = `${path}.${randomUUID()}.tmp`;
+	await writeFile(temporary, JSON.stringify(value), "utf8");
+	await rename(temporary, path);
+}
+function createKbStore(dir) {
+	/** 知识库目录；已确保存在。 */
+	async function kbDir(kbName) {
+		const path = join(dir, assertKbName(kbName));
+		await mkdir(path, { recursive: true });
+		return path;
+	}
+	return {
+		async listKnowledgeBases() {
+			try {
+				return (await readdir(dir, { withFileTypes: true })).filter((entry) => entry.isDirectory() && KB_NAME_PATTERN.test(entry.name)).map((entry) => entry.name).sort();
+			} catch {
+				return [];
+			}
+		},
+		async listDocuments(kbName) {
+			return readJson(join(dir, assertKbName(kbName), "documents.json"), []);
+		},
+		async loadChunks(kbName) {
+			return readJson(join(dir, assertKbName(kbName), "chunks.json"), []);
+		},
+		async index(kbName, input, chunkSize, chunkOverlap) {
+			const text = input.text.trim();
+			if (text === "") throw new Error("入库文本为空：请先通过文档解析拿到正文后再入库");
+			const path = await kbDir(kbName);
+			const documents = await readJson(join(path, "documents.json"), []);
+			const chunks = await readJson(join(path, "chunks.json"), []);
+			const documentId = randomUUID();
+			const pieces = chunkText(text, chunkSize, chunkOverlap);
+			if (pieces.length === 0) throw new Error("入库文本切分后为空：请检查正文内容");
+			const document = {
+				id: documentId,
+				title: input.title.trim() || "未命名文档",
+				source: input.source?.trim() || input.title.trim() || "未命名文档",
+				...input.mimeType === void 0 ? {} : { mimeType: input.mimeType },
+				text,
+				chunkCount: pieces.length,
+				createdAt: Date.now()
+			};
+			const newChunks = pieces.map((piece) => {
+				const { terms, length } = buildTermFrequencies(tokenize(piece.text));
+				return {
+					id: `${documentId}:${piece.index}`,
+					documentId,
+					index: piece.index,
+					text: piece.text,
+					terms,
+					length
+				};
+			});
+			await writeJson(join(path, "documents.json"), [...documents, document]);
+			await writeJson(join(path, "chunks.json"), [...chunks, ...newChunks]);
+			return document;
+		},
+		async remove(kbName, documentId) {
+			const path = await kbDir(kbName);
+			const documents = await readJson(join(path, "documents.json"), []);
+			const remaining = documents.filter((document) => document.id !== documentId);
+			if (remaining.length === documents.length) return false;
+			const chunks = await readJson(join(path, "chunks.json"), []);
+			await writeJson(join(path, "documents.json"), remaining);
+			await writeJson(join(path, "chunks.json"), chunks.filter((chunk) => chunk.documentId !== documentId));
+			return true;
+		}
+	};
+}
+//#endregion
+//#region packages/kb/src/routes.ts
+/**
+* KB 子路由。
+*
+* 与 openmaic-core 的 Next 风格分发不同：本路由由 http 插件挂在
+* `express.json()` **之后**（见 `packages/http/src/app.ts`），请求体已解析，直接
+* 读 `req.body` 即可，不需要原始流缓冲。挂载点 `/api/kb` 在 `/api` 501 兜底之前，
+* 因此不会被兜底吞掉。
+*
+* 响应信封与 openmaic-core 的 `apiSuccess` / `apiError` 保持一致
+* （`{ success: true, ... }` / `{ success: false, errorCode, error }`），前端无需
+* 为 KB 单独适配。
+*
+* @module kb/routes
+*/
+function success(res, data, status = 200) {
+	res.status(status).json({
+		success: true,
+		...data
+	});
+}
+function failure(res, status, errorCode, error, details) {
+	res.status(status).json({
+		success: false,
+		errorCode,
+		error,
+		...details === void 0 ? {} : { details }
+	});
+}
+/** 非空字符串读取；不是字符串时返回 undefined。 */
+function readString(value) {
+	return typeof value === "string" && value.trim() !== "" ? value.trim() : void 0;
+}
+/** 正整数读取（用于 topK）。 */
+function readPositiveInt(value) {
+	return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : void 0;
+}
+/** 校验知识库名：非法名会让路径穿越到存储目录之外，属请求错误而非服务错误。 */
+function rejectInvalidKbName(res, kbName) {
+	if (isValidKbName(kbName)) return false;
+	failure(res, 400, "INVALID_REQUEST", "知识库名非法（仅允许字母/数字/下划线/连字符，1-64 位）");
+	return true;
+}
+function createKbRouter(service) {
+	const router = (0, import_express.Router)();
+	/** 统一把 async handler 的异常转成 500，避免 Express 4 上的未处理 rejection。 */
+	function handle(handler) {
+		return (req, res) => {
+			handler(req, res).catch((error) => {
+				const message = error instanceof Error ? error.message : "Unknown error";
+				console.error("[openmaic] KB 路由失败:", error);
+				failure(res, 500, "INTERNAL_ERROR", "知识库操作失败", message);
+			});
+		};
+	}
+	/** 存储不可用时直接 503，与其他插件的降级语义一致。 */
+	function requireAvailable(res) {
+		if (service.available) return true;
+		failure(res, 503, "KB_UNAVAILABLE", "知识库存储不可用", "请检查 OPENTEACH_KB_DIR 指向的目录是否可写");
+		return false;
+	}
+	router.get("/knowledge-bases", handle(async (_req, res) => {
+		if (!requireAvailable(res)) return;
+		success(res, { data: { knowledgeBases: await service.listKnowledgeBases() } });
+	}));
+	router.get("/:kbName/documents", handle(async (req, res) => {
+		if (!requireAvailable(res)) return;
+		if (rejectInvalidKbName(res, req.params.kbName)) return;
+		success(res, { data: { documents: await service.listDocuments(req.params.kbName) } });
+	}));
+	router.delete("/:kbName/documents/:documentId", handle(async (req, res) => {
+		if (!requireAvailable(res)) return;
+		if (rejectInvalidKbName(res, req.params.kbName)) return;
+		const removed = await service.remove(req.params.kbName, req.params.documentId);
+		if (!removed) {
+			failure(res, 404, "ASSET_NOT_FOUND", "文档不存在");
+			return;
+		}
+		success(res, { data: { removed } });
+	}));
+	router.post("/index", handle(async (req, res) => {
+		if (!requireAvailable(res)) return;
+		const body = req.body ?? {};
+		const kbName = readString(body.kbName);
+		const title = readString(body.title);
+		const text = readString(body.text);
+		if (kbName === void 0 || title === void 0 || text === void 0) {
+			failure(res, 400, "MISSING_REQUIRED_FIELD", "缺少必填字段：kbName / title / text");
+			return;
+		}
+		if (rejectInvalidKbName(res, kbName)) return;
+		const source = readString(body.source);
+		const mimeType = readString(body.mimeType);
+		success(res, { data: { document: await service.index({
+			kbName,
+			title,
+			text,
+			...source === void 0 ? {} : { source },
+			...mimeType === void 0 ? {} : { mimeType }
+		}) } }, 201);
+	}));
+	router.post("/search", handle(async (req, res) => {
+		if (!requireAvailable(res)) return;
+		const body = req.body ?? {};
+		const kbName = readString(body.kbName);
+		const query = readString(body.query);
+		if (kbName === void 0 || query === void 0) {
+			failure(res, 400, "MISSING_REQUIRED_FIELD", "缺少必填字段：kbName / query");
+			return;
+		}
+		if (rejectInvalidKbName(res, kbName)) return;
+		const topK = readPositiveInt(body.topK);
+		const result = await service.search({
+			kbName,
+			query,
+			...topK === void 0 ? {} : { topK },
+			...typeof body.smart === "boolean" ? { smart: body.smart } : {}
+		});
+		success(res, { data: {
+			...result,
+			context: service.formatContext(result)
+		} });
+	}));
+	return router;
+}
+//#endregion
+//#region packages/kb/src/smart-retriever.ts
+/** 查询生成时喂给 LLM 的上下文长度上限（参考实现同为 2000）。 */
+const CONTEXT_LIMIT = 2e3;
+/** 聚合时喂给 LLM 的片段总长上限。 */
+const PASSAGE_LIMIT = 6e3;
+/** 聚合时喂给 LLM 的上下文长度上限。 */
+const AGGREGATE_CONTEXT_LIMIT = 1e3;
+/** 生成查询变体；失败时退化为原始查询。 */
+async function generateQueries(query, complete, maxQueries) {
+	try {
+		const queries = (await complete("你是检索查询生成器。", `针对下面的上下文，生成 ${maxQueries} 条不同的检索查询，用于从知识库中取回相关信息。只输出查询本身，每行一条。\n\n上下文：\n${query.slice(0, CONTEXT_LIMIT)}`)).split("\n").map((line) => line.replace(/^\s*\d+\s*[.、)）-]\s*/, "").trim()).filter((line) => line !== "");
+		return queries.length > 0 ? queries.slice(0, maxQueries) : [query];
+	} catch {
+		return [query];
+	}
+}
+/** 聚合命中片段；失败时退化为拼接。 */
+async function aggregate(query, hits, complete) {
+	const combined = hits.map((hit) => hit.text).join("\n---\n");
+	try {
+		return await complete("你是知识综合器。", `把下面从知识库检索到的片段，针对给定上下文综合成一段简洁、相关的摘要。
+
+上下文：\n${query.slice(0, AGGREGATE_CONTEXT_LIMIT)}\n\n片段：\n${combined.slice(0, PASSAGE_LIMIT)}`);
+	} catch {
+		return hits.map((hit) => hit.text).join("\n\n");
+	}
+}
+/** 多查询检索 + 聚合。未提供 `complete` 时等价于单查询检索。 */
+async function smartRetrieve(options) {
+	const { query, search, complete, maxQueries, topK } = options;
+	if (complete === void 0) {
+		const hits = await search(query);
+		return {
+			queries: [query],
+			hits,
+			answer: ""
+		};
+	}
+	const queries = [...new Set(await generateQueries(query, complete, maxQueries))];
+	const settled = await Promise.allSettled(queries.map((item) => search(item)));
+	const merged = /* @__PURE__ */ new Map();
+	for (const result of settled) {
+		if (result.status !== "fulfilled") continue;
+		for (const hit of result.value) {
+			const existing = merged.get(hit.chunkId);
+			if (existing === void 0 || hit.score > existing.score) merged.set(hit.chunkId, hit);
+		}
+	}
+	const hits = [...merged.values()].sort((a, b) => b.score - a.score).slice(0, topK);
+	if (hits.length === 0) return {
+		queries,
+		hits,
+		answer: ""
+	};
+	return {
+		queries,
+		hits,
+		answer: await aggregate(query, hits, complete)
+	};
+}
+//#endregion
+//#region packages/kb/src/plugin.ts
+/**
+* openmaic-kb 插件：本地知识库的索引与检索层。
+*
+* 独立成包（而不是写进 openmaic-core）的理由：知识库的引擎、分块、检索策略、
+* 存储与配置都属于可替换的实现细节，openmaic-core 只需要一个**通用的外部上下文
+* 接缝**（`GenerateClassroomInput.externalContext`）即可消费任意检索来源——包括
+* 本插件、web search，或未来的其它实现。两边通过一个字符串解耦：本插件
+* `formatContext()` 的产出即是 openmaic-core 的入参。
+*
+* Cordis 范式：命名导出 `name` / `provide` / `apply`，`ctx.provide('openmaic.kb')`
+* 注册服务，随 fiber 卸载回收。**不 inject `eduLlm`**：知识库的索引与检索本身
+* 不依赖模型，只在开启「多查询 + LLM 聚合」时才可选消费它——因此本插件可以脱离
+* llm 插件独立装卸（对齐仓库内其它插件的可选依赖写法）。
+*
+* 降级：存储目录不可写时 `available` 置 false，路由回 503，课堂生成主链路不受
+* 影响（沿用仓库既有哲学）。
+*
+* @module kb/plugin
+*/
+var plugin_exports$1 = /* @__PURE__ */ __exportAll({
+	apply: () => apply$2,
+	name: () => name$2,
+	provide: () => provide$1
+});
+const name$2 = "openmaic:kb";
+const provide$1 = "openmaic.kb";
+/**
+* 把 `eduLlm` 适配为单轮文本补全。
+*
+* 省略 provider / model 之外的参数：由 llm 插件负责路由与凭据，这里只取默认
+* 路由。`finish` 只在 error / aborted 时抛错——`max-tokens` 截断的文本对查询
+* 生成与摘要仍有价值，交给上层决定要不要降级。
+*/
+function createLlmComplete(llm) {
+	if (llm === void 0) return void 0;
+	return async (system, user) => {
+		let text = "";
+		for await (const chunk of llm.runtime.stream({
+			provider: llm.defaultProvider,
+			model: llm.defaultModel,
+			system,
+			messages: [{
+				role: "user",
+				content: [{
+					type: "text",
+					text: user
+				}]
+			}],
+			maxTokens: 1024
+		})) {
+			if (chunk.type === "text-delta") text += chunk.text;
+			if (chunk.type === "finish" && (chunk.reason.kind === "error" || chunk.reason.kind === "aborted")) throw new Error(`LLM 调用未正常结束：${chunk.reason.kind}`);
+		}
+		return text;
+	};
+}
+function apply$2(ctx, config = {}) {
+	const resolved = resolveKbConfig(config);
+	const store = createKbStore(resolved.dir);
+	let available = true;
+	try {
+		mkdirSync(resolved.dir, { recursive: true });
+	} catch (error) {
+		available = false;
+		console.warn(`[openmaic] 知识库存储目录不可用（${resolved.dir}），KB 能力降级为空（不阻断主链路）：`, error);
+	}
+	const complete = createLlmComplete(ctx.get("eduLlm"));
+	/** 空结果的统一形状：检索失败、库为空、未命中都走这里。 */
+	function emptyResult(query, kbName, queries, startedAt) {
+		return {
+			query,
+			kbName,
+			queries,
+			hits: [],
+			answer: "",
+			responseTime: Date.now() - startedAt
+		};
+	}
+	async function search(input) {
+		const startedAt = Date.now();
+		const { kbName, query } = input;
+		if (!available) {
+			console.warn(`[openmaic] 知识库存储不可用，跳过检索（kb=${kbName}）`);
+			return emptyResult(query, kbName, [query], startedAt);
+		}
+		const chunks = await store.loadChunks(kbName);
+		if (chunks.length === 0) return emptyResult(query, kbName, [query], startedAt);
+		const documents = /* @__PURE__ */ new Map();
+		for (const document of await store.listDocuments(kbName)) documents.set(document.id, document);
+		const topK = input.topK ?? resolved.topK;
+		const runSearch = async (item) => searchChunks(item, chunks, documents, topK);
+		const result = input.smart ?? resolved.smartRetrieval ? await smartRetrieve({
+			query,
+			search: runSearch,
+			...complete === void 0 ? {} : { complete },
+			maxQueries: resolved.maxQueries,
+			topK
+		}) : {
+			queries: [query],
+			hits: await runSearch(query),
+			answer: ""
+		};
+		return {
+			query,
+			kbName,
+			queries: result.queries,
+			hits: result.hits,
+			answer: result.answer,
+			responseTime: Date.now() - startedAt
+		};
+	}
+	/** 除路由外的能力集合；路由需要它们，因此分两步装配。 */
+	const capabilities = {
+		available,
+		listKnowledgeBases: () => store.listKnowledgeBases(),
+		listDocuments: (kbName) => store.listDocuments(kbName),
+		index: (input) => store.index(input.kbName, input, resolved.chunkSize, resolved.chunkOverlap),
+		remove: (kbName, documentId) => store.remove(kbName, documentId),
+		search,
+		formatContext: formatKbResultsAsContext
+	};
+	const service = {
+		...capabilities,
+		router: createKbRouter(capabilities)
+	};
+	ctx.provide("openmaic.kb", service);
+	console.log(`[openmaic] kb 插件已装配（dir=${resolved.dir}, topK=${resolved.topK}, smart=${resolved.smartRetrieval && complete !== void 0}, available=${available}）`);
+	return () => {
+		console.log("[openmaic] kb 插件停止");
+	};
+}
+//#endregion
+//#region node_modules/.pnpm/object-assign@4.1.1/node_modules/object-assign/index.js
+/*
+object-assign
+(c) Sindre Sorhus
+@license MIT
+*/
+var require_object_assign = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var getOwnPropertySymbols = Object.getOwnPropertySymbols;
+	var hasOwnProperty = Object.prototype.hasOwnProperty;
+	var propIsEnumerable = Object.prototype.propertyIsEnumerable;
+	function toObject(val) {
+		if (val === null || val === void 0) throw new TypeError("Object.assign cannot be called with null or undefined");
+		return Object(val);
+	}
+	function shouldUseNative() {
+		try {
+			if (!Object.assign) return false;
+			var test1 = /* @__PURE__ */ new String("abc");
+			test1[5] = "de";
+			if (Object.getOwnPropertyNames(test1)[0] === "5") return false;
+			var test2 = {};
+			for (var i = 0; i < 10; i++) test2["_" + String.fromCharCode(i)] = i;
+			if (Object.getOwnPropertyNames(test2).map(function(n) {
+				return test2[n];
+			}).join("") !== "0123456789") return false;
+			var test3 = {};
+			"abcdefghijklmnopqrst".split("").forEach(function(letter) {
+				test3[letter] = letter;
+			});
+			if (Object.keys(Object.assign({}, test3)).join("") !== "abcdefghijklmnopqrst") return false;
+			return true;
+		} catch (err) {
+			return false;
+		}
+	}
+	module.exports = shouldUseNative() ? Object.assign : function(target, source) {
+		var from;
+		var to = toObject(target);
+		var symbols;
+		for (var s = 1; s < arguments.length; s++) {
+			from = Object(arguments[s]);
+			for (var key in from) if (hasOwnProperty.call(from, key)) to[key] = from[key];
+			if (getOwnPropertySymbols) {
+				symbols = getOwnPropertySymbols(from);
+				for (var i = 0; i < symbols.length; i++) if (propIsEnumerable.call(from, symbols[i])) to[symbols[i]] = from[symbols[i]];
+			}
+		}
+		return to;
+	};
 }));
 //#endregion
 //#region packages/http/src/http/routes/llm.ts
-var import_lib = /* @__PURE__ */ __toESM$1(require_lib$2(), 1);
-var import_express = /* @__PURE__ */ __toESM$1(require_express(), 1);
+var import_lib = /* @__PURE__ */ __toESM$1((/* @__PURE__ */ __commonJSMin(((exports, module) => {
+	(function() {
+		"use strict";
+		var assign = require_object_assign();
+		var vary = require_vary();
+		var defaults = {
+			origin: "*",
+			methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+			preflightContinue: false,
+			optionsSuccessStatus: 204
+		};
+		function isString(s) {
+			return typeof s === "string" || s instanceof String;
+		}
+		function isOriginAllowed(origin, allowedOrigin) {
+			if (Array.isArray(allowedOrigin)) {
+				for (var i = 0; i < allowedOrigin.length; ++i) if (isOriginAllowed(origin, allowedOrigin[i])) return true;
+				return false;
+			} else if (isString(allowedOrigin)) return origin === allowedOrigin;
+			else if (allowedOrigin instanceof RegExp) return allowedOrigin.test(origin);
+			else return !!allowedOrigin;
+		}
+		function configureOrigin(options, req) {
+			var requestOrigin = req.headers.origin, headers = [], isAllowed;
+			if (!options.origin || options.origin === "*") headers.push([{
+				key: "Access-Control-Allow-Origin",
+				value: "*"
+			}]);
+			else if (isString(options.origin)) {
+				headers.push([{
+					key: "Access-Control-Allow-Origin",
+					value: options.origin
+				}]);
+				headers.push([{
+					key: "Vary",
+					value: "Origin"
+				}]);
+			} else {
+				isAllowed = isOriginAllowed(requestOrigin, options.origin);
+				headers.push([{
+					key: "Access-Control-Allow-Origin",
+					value: isAllowed ? requestOrigin : false
+				}]);
+				headers.push([{
+					key: "Vary",
+					value: "Origin"
+				}]);
+			}
+			return headers;
+		}
+		function configureMethods(options) {
+			var methods = options.methods;
+			if (methods.join) methods = options.methods.join(",");
+			return {
+				key: "Access-Control-Allow-Methods",
+				value: methods
+			};
+		}
+		function configureCredentials(options) {
+			if (options.credentials === true) return {
+				key: "Access-Control-Allow-Credentials",
+				value: "true"
+			};
+			return null;
+		}
+		function configureAllowedHeaders(options, req) {
+			var allowedHeaders = options.allowedHeaders || options.headers;
+			var headers = [];
+			if (!allowedHeaders) {
+				allowedHeaders = req.headers["access-control-request-headers"];
+				headers.push([{
+					key: "Vary",
+					value: "Access-Control-Request-Headers"
+				}]);
+			} else if (allowedHeaders.join) allowedHeaders = allowedHeaders.join(",");
+			if (allowedHeaders && allowedHeaders.length) headers.push([{
+				key: "Access-Control-Allow-Headers",
+				value: allowedHeaders
+			}]);
+			return headers;
+		}
+		function configureExposedHeaders(options) {
+			var headers = options.exposedHeaders;
+			if (!headers) return null;
+			else if (headers.join) headers = headers.join(",");
+			if (headers && headers.length) return {
+				key: "Access-Control-Expose-Headers",
+				value: headers
+			};
+			return null;
+		}
+		function configureMaxAge(options) {
+			var maxAge = (typeof options.maxAge === "number" || options.maxAge) && options.maxAge.toString();
+			if (maxAge && maxAge.length) return {
+				key: "Access-Control-Max-Age",
+				value: maxAge
+			};
+			return null;
+		}
+		function applyHeaders(headers, res) {
+			for (var i = 0, n = headers.length; i < n; i++) {
+				var header = headers[i];
+				if (header) {
+					if (Array.isArray(header)) applyHeaders(header, res);
+					else if (header.key === "Vary" && header.value) vary(res, header.value);
+					else if (header.value) res.setHeader(header.key, header.value);
+				}
+			}
+		}
+		function cors(options, req, res, next) {
+			var headers = [];
+			if ((req.method && req.method.toUpperCase && req.method.toUpperCase()) === "OPTIONS") {
+				headers.push(configureOrigin(options, req));
+				headers.push(configureCredentials(options));
+				headers.push(configureMethods(options));
+				headers.push(configureAllowedHeaders(options, req));
+				headers.push(configureMaxAge(options));
+				headers.push(configureExposedHeaders(options));
+				applyHeaders(headers, res);
+				if (options.preflightContinue) next();
+				else {
+					res.statusCode = options.optionsSuccessStatus;
+					res.setHeader("Content-Length", "0");
+					res.end();
+				}
+			} else {
+				headers.push(configureOrigin(options, req));
+				headers.push(configureCredentials(options));
+				headers.push(configureExposedHeaders(options));
+				applyHeaders(headers, res);
+				next();
+			}
+		}
+		function middlewareWrapper(o) {
+			var optionsCallback = null;
+			if (typeof o === "function") optionsCallback = o;
+			else optionsCallback = function(req, cb) {
+				cb(null, o);
+			};
+			return function corsMiddleware(req, res, next) {
+				optionsCallback(req, function(err, options) {
+					if (err) next(err);
+					else {
+						var corsOptions = assign({}, defaults, options);
+						var originCallback = null;
+						if (corsOptions.origin && typeof corsOptions.origin === "function") originCallback = corsOptions.origin;
+						else if (corsOptions.origin) originCallback = function(origin, cb) {
+							cb(null, corsOptions.origin);
+						};
+						if (originCallback) originCallback(req.headers.origin, function(err2, origin) {
+							if (err2 || !origin) next(err2);
+							else {
+								corsOptions.origin = origin;
+								cors(corsOptions, req, res, next);
+							}
+						});
+						else next();
+					}
+				});
+			};
+		}
+		module.exports = middlewareWrapper;
+	})();
+})))(), 1);
+/**
+* LLM 相关路由：把可用的 provider / 模型目录暴露给前端，
+* 让「自定义 LLM 配置」在选择器上是可见、可验证的。
+*
+* @module http/routes/llm
+*/
 function createLlmRouter(context) {
 	const router = (0, import_express.Router)();
 	router.get("/providers", async (_req, res) => {
@@ -389411,6 +390041,7 @@ function createApp(context, options = {}) {
 	app.use("/api/llm", createLlmRouter(context));
 	app.use("/api/classroom", createClassroomRouter(context));
 	app.use("/api/agents", createAgentsRouter(context));
+	if (options.kb !== void 0) app.use("/api/kb", options.kb);
 	app.use("/api", (_req, res) => {
 		res.status(501).json({
 			success: false,
@@ -389464,6 +390095,7 @@ function apply$1(ctx, config = {}) {
 	const classroom = ctx.get("openmaic.classroom");
 	const storage = ctx.get("openmaic.storage");
 	const openmaicCore = ctx.get("openmaic.core");
+	const kb = ctx.get("openmaic.kb");
 	const app = createApp({
 		runtime: llm.runtime,
 		repo,
@@ -389475,6 +390107,7 @@ function apply$1(ctx, config = {}) {
 		...config.mode === void 0 ? {} : { mode: config.mode },
 		...config.webDist === void 0 ? {} : { webDist: config.webDist },
 		...openmaicCore === void 0 ? {} : { openmaicCore: openmaicCore.handler },
+		...kb === void 0 ? {} : { kb: kb.router },
 		plugins: {
 			listPlugins: () => listPlugins(ctx),
 			listServices: () => listServices(ctx)
@@ -389491,7 +390124,7 @@ function apply$1(ctx, config = {}) {
 * - 声明式的组装清单见 `cordis.patch.yml`（`dsh.bundle.patch`，单行指向本包）；
 * - 程序化装载见本文件 `apply()`，与清单保持同一顺序
 *   llm → db → kernel → storage → generation → layout → slide → audio →
-*   classroom → openmaic-core → http。
+*   classroom → openmaic-core → kb → http。
 *
 * 各模块自身经 `ctx.provide()` 注册服务，随各自 fiber 卸载回收；bundle 只协调
 * 装载顺序与配置透传，某模块缺失时由使用方按其契约降级。
@@ -389615,16 +390248,17 @@ async function apply(ctx, config = {}) {
 	const mode = resolveMode(config.mode);
 	const dbFilePath = nonEmpty(config.dbFilePath) ?? nonEmpty(process.env.OPENTEACH_DB_PATH) ?? join(process.cwd(), "data", "openteach.db");
 	const webDist = nonEmpty(config.webDist) ?? nonEmpty(process.env.OPENTEACH_WEB_DIST);
-	await ctx.plugin(plugin_exports$8, resolveLlmConfig(config));
-	await ctx.plugin(plugin_exports$7, { filePath: dbFilePath });
+	await ctx.plugin(plugin_exports$9, resolveLlmConfig(config));
+	await ctx.plugin(plugin_exports$8, { filePath: dbFilePath });
 	await ctx.plugin(dsh_kernel_exports);
-	await ctx.plugin(plugin_exports$6);
-	await ctx.plugin(plugin_exports$5, config.generation ?? {});
+	await ctx.plugin(plugin_exports$7);
+	await ctx.plugin(plugin_exports$6, config.generation ?? {});
+	await ctx.plugin(plugin_exports$5);
 	await ctx.plugin(plugin_exports$4);
 	await ctx.plugin(plugin_exports$3);
-	await ctx.plugin(plugin_exports$2);
-	await ctx.plugin(plugin_exports$1, config.classroom ?? {});
+	await ctx.plugin(plugin_exports$2, config.classroom ?? {});
 	await ctx.plugin(lib_exports);
+	await ctx.plugin(plugin_exports$1);
 	await ctx.plugin(plugin_exports, {
 		mode,
 		...mode === "production" && webDist !== void 0 ? { webDist } : {}

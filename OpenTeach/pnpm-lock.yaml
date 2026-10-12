@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@openmaic/dsl': file:../OpenMAIC/packages/@openmaic/dsl
+  '@openmaic/dsl': file:../references/OpenMAIC/packages/@openmaic/dsl
 
 importers:
 
@@ -36,6 +36,9 @@ importers:
       '@openteach/plugin-http':
         specifier: workspace:*
         version: link:packages/http
+      '@openteach/plugin-kb':
+        specifier: workspace:*
+        version: link:packages/kb
       '@openteach/plugin-kernel':
         specifier: workspace:*
         version: link:packages/kernel
@@ -129,6 +132,9 @@ importers:
       '@openteach/plugin-db':
         specifier: workspace:*
         version: link:../db
+      '@openteach/plugin-kb':
+        specifier: workspace:*
+        version: link:../kb
       '@openteach/plugin-llm':
         specifier: workspace:*
         version: link:../llm
@@ -160,6 +166,25 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/kb:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: ^4.0.4
+        version: 4.0.4
+      '@openteach/plugin-llm':
+        specifier: workspace:*
+        version: link:../llm
+      express:
+        specifier: ^4.21.2
+        version: 4.22.3
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
 
   packages/kernel:
     dependencies:
@@ -263,14 +288,14 @@ importers:
         specifier: ^0.6.0
         version: 0.6.0
       '@openmaic/dsl':
-        specifier: file:../../../OpenMAIC/packages/@openmaic/dsl
-        version: file:../OpenMAIC/packages/@openmaic/dsl
+        specifier: file:../../../references/OpenMAIC/packages/@openmaic/dsl
+        version: file:../references/OpenMAIC/packages/@openmaic/dsl
       '@openmaic/generation':
-        specifier: file:../../../OpenMAIC/packages/@openmaic/generation
-        version: file:../OpenMAIC/packages/@openmaic/generation
+        specifier: file:../../../references/OpenMAIC/packages/@openmaic/generation
+        version: file:../references/OpenMAIC/packages/@openmaic/generation
       '@openmaic/storage':
-        specifier: file:../../../OpenMAIC/packages/@openmaic/storage
-        version: file:../OpenMAIC/packages/@openmaic/storage(@aws-sdk/client-s3@3.1147.0)(@aws-sdk/s3-request-presigner@3.1147.0)
+        specifier: file:../../../references/OpenMAIC/packages/@openmaic/storage
+        version: file:../references/OpenMAIC/packages/@openmaic/storage(@aws-sdk/client-s3@3.1147.0)(@aws-sdk/s3-request-presigner@3.1147.0)
       ai:
         specifier: ^6.0.168
         version: 6.0.301(zod@4.6.5)
@@ -383,8 +408,8 @@ importers:
         specifier: ^4.0.4
         version: 4.0.4
       '@openmaic/dsl':
-        specifier: file:../../../OpenMAIC/packages/@openmaic/dsl
-        version: file:../OpenMAIC/packages/@openmaic/dsl
+        specifier: file:../../../references/OpenMAIC/packages/@openmaic/dsl
+        version: file:../references/OpenMAIC/packages/@openmaic/dsl
       '@openteach/plugin-layout':
         specifier: workspace:*
         version: link:../layout
@@ -395,8 +420,8 @@ importers:
         specifier: ^4.0.4
         version: 4.0.4
       '@openmaic/dsl':
-        specifier: file:../../../OpenMAIC/packages/@openmaic/dsl
-        version: file:../OpenMAIC/packages/@openmaic/dsl
+        specifier: file:../../../references/OpenMAIC/packages/@openmaic/dsl
+        version: file:../references/OpenMAIC/packages/@openmaic/dsl
       '@openteach/plugin-db':
         specifier: workspace:*
         version: link:../db
@@ -1159,14 +1184,14 @@ packages:
     resolution: {integrity: sha512-juG5VWh4qAivzTAeMzvY9xs9HY5rAcr2E4I7tiSSCokRFi7XIZCAu92ZkSTsIj1OPceCifL3cpfteP3pDT9/QQ==}
     engines: {node: '>=14.0.0'}
 
-  '@openmaic/dsl@file:../OpenMAIC/packages/@openmaic/dsl':
-    resolution: {directory: ../OpenMAIC/packages/@openmaic/dsl, type: directory}
+  '@openmaic/dsl@file:../references/OpenMAIC/packages/@openmaic/dsl':
+    resolution: {directory: ../references/OpenMAIC/packages/@openmaic/dsl, type: directory}
 
-  '@openmaic/generation@file:../OpenMAIC/packages/@openmaic/generation':
-    resolution: {directory: ../OpenMAIC/packages/@openmaic/generation, type: directory}
+  '@openmaic/generation@file:../references/OpenMAIC/packages/@openmaic/generation':
+    resolution: {directory: ../references/OpenMAIC/packages/@openmaic/generation, type: directory}
 
-  '@openmaic/storage@file:../OpenMAIC/packages/@openmaic/storage':
-    resolution: {directory: ../OpenMAIC/packages/@openmaic/storage, type: directory}
+  '@openmaic/storage@file:../references/OpenMAIC/packages/@openmaic/storage':
+    resolution: {directory: ../references/OpenMAIC/packages/@openmaic/storage, type: directory}
     peerDependencies:
       '@aws-sdk/client-s3': ^3.0.0
       '@aws-sdk/s3-request-presigner': ^3.0.0
@@ -3518,20 +3543,20 @@ snapshots:
 
   '@mozilla/readability@0.6.0': {}
 
-  '@openmaic/dsl@file:../OpenMAIC/packages/@openmaic/dsl': {}
+  '@openmaic/dsl@file:../references/OpenMAIC/packages/@openmaic/dsl': {}
 
-  '@openmaic/generation@file:../OpenMAIC/packages/@openmaic/generation':
+  '@openmaic/generation@file:../references/OpenMAIC/packages/@openmaic/generation':
     dependencies:
-      '@openmaic/dsl': file:../OpenMAIC/packages/@openmaic/dsl
+      '@openmaic/dsl': file:../references/OpenMAIC/packages/@openmaic/dsl
       jsonrepair: 3.15.0
       katex: 0.16.47
       nanoid: 5.1.16
       parse5: 8.0.1
       partial-json: 0.1.7
 
-  '@openmaic/storage@file:../OpenMAIC/packages/@openmaic/storage(@aws-sdk/client-s3@3.1147.0)(@aws-sdk/s3-request-presigner@3.1147.0)':
+  '@openmaic/storage@file:../references/OpenMAIC/packages/@openmaic/storage(@aws-sdk/client-s3@3.1147.0)(@aws-sdk/s3-request-presigner@3.1147.0)':
     dependencies:
-      '@openmaic/dsl': file:../OpenMAIC/packages/@openmaic/dsl
+      '@openmaic/dsl': file:../references/OpenMAIC/packages/@openmaic/dsl
     optionalDependencies:
       '@aws-sdk/client-s3': 3.1147.0
       '@aws-sdk/s3-request-presigner': 3.1147.0

@@ -67,6 +67,13 @@ export interface GenerateClassroomInput {
   enableVideoGeneration?: boolean;
   enableTTS?: boolean;
   agentMode?: 'default' | 'generate';
+  /**
+   * 外部检索上下文（可选）。由外部来源产出并注入提纲生成，本模块只做拼接透传，
+   * 不含任何检索实现：OpenTeach 的 `openmaic:kb` 插件把知识库命中格式化成该
+   * 字符串（`POST /api/kb/search` 的 `data.context`），调用方再原样传给
+   * `POST /api/generate-classroom`。与后端 openmaic-core 的同名字段保持一致。
+   */
+  externalContext?: string;
 }
 
 export type ClassroomGenerationStep =
@@ -553,6 +560,15 @@ export async function generateClassroom(
     } else {
       log.warn('enableWebSearch is true but no web search API key configured, skipping web search');
     }
+  }
+
+  // 外部检索上下文（可选，优雅降级）：由外部插件（如 openmaic:kb 的知识库检索）
+  // 产出。与 web search 结果合并为同一段 researchContext 注入提纲生成；缺失时
+  // 行为与改造前完全一致。
+  const externalContext = input.externalContext?.trim();
+  if (externalContext) {
+    researchContext = researchContext ? `${researchContext}\n\n${externalContext}` : externalContext;
+    log.info(`Merged external retrieval context (${externalContext.length} chars)`);
   }
 
   await options.onProgress?.({

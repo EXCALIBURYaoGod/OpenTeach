@@ -34,6 +34,11 @@ export interface GenerationSessionState {
   // Web search context
   researchContext?: string;
   researchSources?: Array<{ title: string; url: string }>;
+  /**
+   * 选用的知识库名（空/缺省表示不使用）。检索在 preview 启动时发起，
+   * 命中片段并入 {@link researchContext}，因此这里只记「选用」本身。
+   */
+  kbName?: string;
   // Language directive inferred from outline generation
   languageDirective?: string;
   // Concise course title inferred from outline generation (used as the stage name)

@@ -32,6 +32,14 @@ export interface AppOptions {
    * 一旦上游解析过 JSON，流即被消费，`/api/persistence` 等路由会读到空体。
    */
   openmaicCore?: NodeMiddleware
+  /**
+   * 知识库（KB）子路由（可选）。由 `openmaic:kb` 插件提供，挂在 `/api/kb` 之下。
+   *
+   * 与 `openmaicCore` 相反，它挂在 `express.json()` **之后**：KB 路由是普通
+   * Express Router，直接读已解析的 `req.body`。但必须早于下方 `/api` 的 501
+   * 兜底——`app.use` 是追加语义，晚挂的中间件永远不会被命中。
+   */
+  kb?: RequestHandler
 }
 
 /** Express 可直接 `app.use()` 的 Node 风格中间件。 */
@@ -76,6 +84,11 @@ export function createApp(context: AppContext, options: AppOptions = {}): Expres
   // 互动课堂：课堂编排（SSE）+ 角色 CRUD。
   app.use('/api/classroom', createClassroomRouter(context))
   app.use('/api/agents', createAgentsRouter(context))
+
+  // 知识库：普通 Express 路由，依赖已解析的 JSON body，且必须早于 /api 501 兜底。
+  if (options.kb !== undefined) {
+    app.use('/api/kb', options.kb)
+  }
 
   // 未实现的 OpenMAIC 能力域：统一 501，前端据此屏蔽对应入口（不再返回笼统 404）。
   app.use('/api', (_req, res) => {

@@ -27,6 +27,7 @@ import {
   X,
   Presentation,
   Loader2,
+  BookOpen,
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -95,11 +96,24 @@ import {
   readLastWorkspaceSessionId,
   workspaceResumeHref,
 } from '@/lib/workbench/workspace-session-memory';
+import { KnowledgeManagerDialog } from '@/components/knowledge/knowledge-manager-dialog';
+import { probeKnowledgeBase } from '@/lib/kb/client';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const log = createLogger('Home');
 
 const RECENT_OPEN_STORAGE_KEY = 'recentClassroomsOpen';
 const INTERACTIVE_MODE_STORAGE_KEY = 'interactiveModeEnabled';
+/** 上次选用的知识库名；知识库由后端插件持有，这里只记「用户的选用」。 */
+const KB_NAME_STORAGE_KEY = 'knowledgeBaseName';
+/** Radix Select 不允许空字符串作为 item value，用它代表「不使用知识库」。 */
+const KB_NONE_VALUE = '__none__';
 
 // PPTX import is still scaffolding: `useImportPptx` has no `onImported` consumer
 // yet, so the flow only logs the parsed slides. Hide the entry point behind a
@@ -114,6 +128,8 @@ interface FormState {
   requirement: string;
   interactiveMode: boolean;
   vocationalTestMode: boolean;
+  /** 选用的知识库名；空串表示不使用知识库。 */
+  kbName: string;
 }
 
 const initialFormState: FormState = {
@@ -121,6 +137,7 @@ const initialFormState: FormState = {
   requirement: '',
   interactiveMode: false,
   vocationalTestMode: false,
+  kbName: '',
 };
 
 function HomePage() {
@@ -201,6 +218,26 @@ function HomePage() {
     } catch {
       /* localStorage unavailable */
     }
+    try {
+      const savedKbName = localStorage.getItem(KB_NAME_STORAGE_KEY);
+      if (savedKbName) setForm((prev) => ({ ...prev, kbName: savedKbName }));
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, []);
+
+  // Probe the knowledge base service once per mount. A failed probe (backend
+  // without @openteach/plugin-kb, or /api/kb not proxied to OpenTeach) leaves
+  // the list empty, which hides the whole chip row — generation is unaffected.
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      const status = await probeKnowledgeBase(controller.signal);
+      if (controller.signal.aborted) return;
+      setKbAvailable(status.available);
+      setKnowledgeBases(status.knowledgeBases);
+    })();
+    return () => controller.abort();
   }, []);
 
   // Restore requirement draft from localStorage on mount. The previous derived-state
@@ -228,6 +265,12 @@ function HomePage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 知识库：列表来自后端探针。`kbAvailable` 单独记「服务是否可用」—— 刚装好时库
+  // 列表为空但服务可用，入口仍要露出，否则用户无法创建第一个知识库。
+  const [kbAvailable, setKbAvailable] = useState(false);
+  const [knowledgeBases, setKnowledgeBases] = useState<string[]>([]);
+  const [kbManagerOpen, setKbManagerOpen] = useState(false);
 
   // Course folders — device-local grouping. `currentFolderId === undefined`
   // is the root view (folders + unfiled courses); a folder id navigates into
@@ -505,6 +548,7 @@ function HomePage() {
       if (field === 'interactiveMode')
         localStorage.setItem(INTERACTIVE_MODE_STORAGE_KEY, String(value));
       if (field === 'requirement') updateRequirementCache(value as string);
+      if (field === 'kbName') localStorage.setItem(KB_NAME_STORAGE_KEY, String(value));
     } catch {
       /* ignore */
     }
@@ -648,6 +692,9 @@ function HomePage() {
       const sessionState = {
         sessionId: nanoid(),
         requirements,
+        // 知识库检索在 /generation-preview 里发起（与联网调研同一位置），
+        // 这里只把选用带下去。
+        kbName: form.kbName || undefined,
         pdfText: '',
         pdfImages: [],
         imageStorageIds: [],
@@ -953,6 +1000,60 @@ function HomePage() {
             </div>
           </div>
         </motion.div>
+
+        {/* 知识库：后端未提供 kb 服务时整行不渲染 */}
+        {kbAvailable && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.38 }}
+            className="mt-2 flex w-full flex-wrap items-center gap-2 px-1"
+          >
+            <BookOpen className="size-3.5 shrink-0 text-muted-foreground" />
+            <Select
+              value={form.kbName || KB_NONE_VALUE}
+              onValueChange={(value) => updateForm('kbName', value === KB_NONE_VALUE ? '' : value)}
+              disabled={preparingGenerate}
+            >
+              <SelectTrigger size="sm" className="w-48 rounded-full text-[11px]">
+                <SelectValue placeholder={t('knowledge.empty')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={KB_NONE_VALUE}>{t('knowledge.selectNone')}</SelectItem>
+                {knowledgeBases.map((kbName) => (
+                  <SelectItem key={kbName} value={kbName}>
+                    {kbName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              onClick={() => setKbManagerOpen(true)}
+              disabled={preparingGenerate}
+              className="text-[11px] font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('knowledge.manage')}
+            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex cursor-help text-muted-foreground/60">
+                  <span className="text-[11px]">?</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                {t('knowledge.hint')}
+              </TooltipContent>
+            </Tooltip>
+          </motion.div>
+        )}
+
+        <KnowledgeManagerDialog
+          open={kbManagerOpen}
+          onOpenChange={setKbManagerOpen}
+          activeKbName={form.kbName}
+          onActiveKbNameChange={(kbName) => updateForm('kbName', kbName)}
+        />
 
         {showVocationalTestUi && (
           <motion.div

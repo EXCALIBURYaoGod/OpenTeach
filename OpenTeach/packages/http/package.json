@@ -10,6 +10,7 @@
     "@deepseek-ai/cordis": "^4.0.4",
     "@openteach/plugin-classroom": "workspace:*",
     "@openteach/plugin-db": "workspace:*",
+    "@openteach/plugin-kb": "workspace:*",
     "@openteach/plugin-llm": "workspace:*",
     "@openteach/plugin-slide": "workspace:*",
     "@openteach/plugin-storage": "workspace:*",

@@ -34,6 +34,7 @@ import {
   storeImages,
 } from '@/lib/utils/image-storage';
 import { getCurrentModelConfig, getStageRoutesHeaderValue } from '@/lib/utils/model-config';
+import { searchKnowledgeBase } from '@/lib/kb/client';
 import { resolveSessionDocumentSources } from '@/lib/document/session-sources';
 import { MAX_VISION_IMAGES } from '@/lib/constants/generation';
 import {
@@ -517,6 +518,36 @@ function GenerationPreviewContent() {
         sessionStorage.setItem('generationSession', JSON.stringify(updatedSessionWithSearch));
         currentSession = updatedSessionWithSearch;
         activeSteps = getActiveSteps(currentSession);
+      }
+
+      // 步骤：知识库检索（选用了知识库时）。
+      // 与上面的联网调研同位置、同语义：命中片段并入 researchContext，让大纲
+      // 提示词只看到一段合并后的「调研」上下文。失败只记日志、不抛错 ——
+      // 与后端 kb 插件「检索失败不阻断主链路」的降级约定一致。
+      if (currentSession.kbName) {
+        try {
+          const kbResult = await searchKnowledgeBase({
+            kbName: currentSession.kbName,
+            query: currentSession.requirements.requirement,
+          });
+          const kbContext = kbResult.context?.trim();
+          if (kbContext) {
+            const updatedSessionWithKb = {
+              ...currentSession,
+              researchContext: currentSession.researchContext
+                ? `${currentSession.researchContext}\n\n${kbContext}`
+                : kbContext,
+            };
+            setSession(updatedSessionWithKb);
+            sessionStorage.setItem('generationSession', JSON.stringify(updatedSessionWithKb));
+            currentSession = updatedSessionWithKb;
+            log.info(`知识库「${kbResult.kbName}」返回 ${kbResult.hits.length} 条命中`);
+          } else {
+            log.info(`知识库「${kbResult.kbName}」未命中任何分块，跳过上下文注入`);
+          }
+        } catch (error) {
+          log.warn('知识库检索失败，继续不带知识库上下文生成:', error);
+        }
       }
 
       // Load imageMapping early (needed for both outline and scene generation).

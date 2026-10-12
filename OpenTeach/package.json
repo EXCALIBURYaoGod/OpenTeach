@@ -46,6 +46,7 @@
     "@openteach/plugin-db": "workspace:*",
     "@openteach/plugin-generation": "workspace:*",
     "@openteach/plugin-http": "workspace:*",
+    "@openteach/plugin-kb": "workspace:*",
     "@openteach/plugin-kernel": "workspace:*",
     "@openteach/plugin-layout": "workspace:*",
     "@openteach/plugin-llm": "workspace:*",

@@ -15,6 +15,7 @@ import type { AppContext } from '../context.js'
 import type { AppMode } from '@openteach/shared'
 import type { OpenmaicSlideService } from '@openteach/plugin-slide'
 import type { OpenmaicCoreService } from '@openteach/plugin-openmaic-core'
+import type { KbService } from '@openteach/plugin-kb'
 import { createApp } from '../app.js'
 
 declare module '@deepseek-ai/cordis' {
@@ -68,6 +69,7 @@ export function apply(ctx: Context, config: HttpPluginConfig = {}): void {
   const classroom = ctx.get('openmaic.classroom')
   const storage = ctx.get('openmaic.storage')
   const openmaicCore: OpenmaicCoreService | undefined = ctx.get('openmaic.core')
+  const kb: KbService | undefined = ctx.get('openmaic.kb')
   const appContext: AppContext = {
     runtime: llm.runtime,
     repo,
@@ -81,6 +83,7 @@ export function apply(ctx: Context, config: HttpPluginConfig = {}): void {
     ...(config.mode === undefined ? {} : { mode: config.mode }),
     ...(config.webDist === undefined ? {} : { webDist: config.webDist }),
     ...(openmaicCore === undefined ? {} : { openmaicCore: openmaicCore.handler }),
+    ...(kb === undefined ? {} : { kb: kb.router }),
     plugins: {
       listPlugins: () => listPlugins(ctx),
       listServices: () => listServices(ctx),

@@ -5,7 +5,7 @@
  * - 声明式的组装清单见 `cordis.patch.yml`（`dsh.bundle.patch`，单行指向本包）；
  * - 程序化装载见本文件 `apply()`，与清单保持同一顺序
  *   llm → db → kernel → storage → generation → layout → slide → audio →
- *   classroom → openmaic-core → http。
+ *   classroom → openmaic-core → kb → http。
  *
  * 各模块自身经 `ctx.provide()` 注册服务，随各自 fiber 卸载回收；bundle 只协调
  * 装载顺序与配置透传，某模块缺失时由使用方按其契约降级。
@@ -40,6 +40,7 @@ import * as slidePlugin from '@openteach/plugin-slide'
 import * as audioPlugin from '@openteach/plugin-audio'
 import * as classroomPlugin from '@openteach/plugin-classroom'
 import * as openmaicCorePlugin from '@openteach/plugin-openmaic-core'
+import * as kbPlugin from '@openteach/plugin-kb'
 import * as httpPlugin from '@openteach/plugin-http'
 import type { Config as LlmConfig } from '@openteach/plugin-llm'
 import type { GenerationConfig } from '@openteach/plugin-generation'
@@ -213,6 +214,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void | (
   await ctx.plugin(classroomPlugin, config.classroom ?? {})
   // OpenMAIC 核心 API（生成 + 课堂主链路）：注册 openmaic.core 服务，由 http 插件挂载。
   await ctx.plugin(openmaicCorePlugin)
+  // 本地知识库（索引 + 检索）：注册 openmaic.kb 服务，其上下文经
+  // `GenerateClassroomInput.externalContext` 注入课堂生成；可选依赖 eduLlm，
+  // 缺失时自动关闭多查询检索，不阻断装配。
+  await ctx.plugin(kbPlugin)
   // HTTP/SSE 出口：仅生产模式托管前端构建产物。
   await ctx.plugin(httpPlugin, {
     mode,

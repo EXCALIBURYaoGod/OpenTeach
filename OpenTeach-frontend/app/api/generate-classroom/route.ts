@@ -58,6 +58,11 @@ export async function POST(req: NextRequest) {
         : {}),
       ...(rawBody.enableTTS != null ? { enableTTS: rawBody.enableTTS } : {}),
       ...(rawBody.agentMode ? { agentMode: rawBody.agentMode } : {}),
+      // 外部检索上下文：由调用方（如知识库检索 /api/kb/search 的 data.context）
+      // 产出后原样透传，本路由不做校验也不做解析。
+      ...(typeof rawBody.externalContext === 'string' && rawBody.externalContext !== ''
+        ? { externalContext: rawBody.externalContext }
+        : {}),
     };
     const { requirement } = body;
 

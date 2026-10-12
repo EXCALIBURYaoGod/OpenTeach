@@ -58,6 +58,10 @@ export async function POST(req: NextRequest) {
         : {}),
       ...(rawBody.enableTTS != null ? { enableTTS: rawBody.enableTTS } : {}),
       ...(rawBody.agentMode ? { agentMode: rawBody.agentMode } : {}),
+      // 外部检索上下文（如 openmaic:kb 的检索结果）：白名单透传，类型不符即丢弃。
+      ...(typeof rawBody.externalContext === 'string' && rawBody.externalContext !== ''
+        ? { externalContext: rawBody.externalContext }
+        : {}),
     };
     const { requirement } = body;
 
