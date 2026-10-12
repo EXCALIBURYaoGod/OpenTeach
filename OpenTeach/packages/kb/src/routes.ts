@@ -70,6 +70,19 @@ export function createKbRouter(service: Omit<KbService, 'router'>): Router {
     return false
   }
 
+  /**
+   * 知识库必须已存在，否则 404。
+   *
+   * 这是「库不存在」与「库为空 / 未命中」的分界：两者都返回空结果会让调用方
+   * （尤其前端）无法判断是不是选错了库，只能静默退化。服务层不受影响——它仍
+   * 对不存在的库返回空结果，保证课堂生成不会被一次检索打断。
+   */
+  async function requireExistingKb(res: Response, kbName: string): Promise<boolean> {
+    if (await service.hasKnowledgeBase(kbName)) return true
+    failure(res, 404, 'KB_NOT_FOUND', '知识库不存在', `知识库 "${kbName}" 尚未创建`)
+    return false
+  }
+
   router.get(
     '/knowledge-bases',
     handle(async (_req, res) => {
@@ -78,11 +91,48 @@ export function createKbRouter(service: Omit<KbService, 'router'>): Router {
     }),
   )
 
+  // 集合上的 POST = 显式新建；与 GET 同路径，避免动态段 `/:kbName` 与 `/index`、
+  // `/search` 这些字面量路由在注册顺序上互相遮蔽。
+  router.post(
+    '/knowledge-bases',
+    handle(async (req, res) => {
+      if (!requireAvailable(res)) return
+      const body = (req.body ?? {}) as { kbName?: unknown }
+      const kbName = readString(body.kbName)
+      if (kbName === undefined) {
+        failure(res, 400, 'MISSING_REQUIRED_FIELD', '缺少必填字段：kbName')
+        return
+      }
+      if (rejectInvalidKbName(res, kbName)) return
+      const created = await service.createKnowledgeBase(kbName)
+      if (!created) {
+        failure(res, 409, 'KB_EXISTS', '知识库已存在', `知识库 "${kbName}" 已存在`)
+        return
+      }
+      success(res, { data: { kbName, created: true } }, 201)
+    }),
+  )
+
+  router.delete(
+    '/knowledge-bases/:kbName',
+    handle(async (req, res) => {
+      if (!requireAvailable(res)) return
+      if (rejectInvalidKbName(res, req.params.kbName)) return
+      const removed = await service.removeKnowledgeBase(req.params.kbName)
+      if (!removed) {
+        failure(res, 404, 'KB_NOT_FOUND', '知识库不存在')
+        return
+      }
+      success(res, { data: { kbName: req.params.kbName, removed: true } })
+    }),
+  )
+
   router.get(
     '/:kbName/documents',
     handle(async (req, res) => {
       if (!requireAvailable(res)) return
       if (rejectInvalidKbName(res, req.params.kbName)) return
+      if (!(await requireExistingKb(res, req.params.kbName))) return
       success(res, { data: { documents: await service.listDocuments(req.params.kbName) } })
     }),
   )
@@ -92,6 +142,7 @@ export function createKbRouter(service: Omit<KbService, 'router'>): Router {
     handle(async (req, res) => {
       if (!requireAvailable(res)) return
       if (rejectInvalidKbName(res, req.params.kbName)) return
+      if (!(await requireExistingKb(res, req.params.kbName))) return
       const removed = await service.remove(req.params.kbName, req.params.documentId)
       if (!removed) {
         failure(res, 404, 'ASSET_NOT_FOUND', '文档不存在')
@@ -139,6 +190,7 @@ export function createKbRouter(service: Omit<KbService, 'router'>): Router {
         return
       }
       if (rejectInvalidKbName(res, kbName)) return
+      if (!(await requireExistingKb(res, kbName))) return
       const topK = readPositiveInt(body.topK)
       const result = await service.search({
         kbName,

@@ -1063,9 +1063,13 @@
     "manager": {
       "required": "Title and text are required",
       "needKb": "Select or create a knowledge base first",
-      "indexed": "Indexed \"{title}\"",
+      "indexed": "Indexed \"{{title}}\"",
       "deleted": "Document deleted",
-      "failed": "Failed: {message}"
+      "failed": "Failed: {{message}}",
+      "created": "Knowledge base \"{{kbName}}\" created",
+      "deletedKb": "Knowledge base \"{{kbName}}\" deleted",
+      "deleteKb": "Delete knowledge base",
+      "deleteKbConfirm": "Delete this knowledge base together with all its documents and index? This cannot be undone."
     }
   },
   "generation": {
@@ -1175,6 +1179,9 @@
     "webSearching": "Tìm trên web",
     "webSearchingDesc": "Đang tìm trên web để lấy thông tin mới nhất",
     "webSearchFailed": "Tìm trên web không thành công",
+    "kbSearchHit": "Đã tham chiếu {{hits}} đoạn trích từ cơ sở tri thức “{{kbName}}”",
+    "kbSearchEmpty": "Không có nội dung liên quan trong cơ sở tri thức “{{kbName}}” — không dùng",
+    "kbSearchFailed": "Tìm kiếm trong cơ sở tri thức “{{kbName}}” thất bại — đã bỏ qua",
     "outlinesReadyCount": "{{ready}} / {{total}} phần đã xong",
     "jumpToBlankTitle": "Nhảy tới phần còn thiếu tên",
     "analyzingMediaMaterial": "Đang phân tích âm thanh/video"

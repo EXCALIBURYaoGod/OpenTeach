@@ -33,6 +33,28 @@ interface KbEnvelope {
   data?: unknown;
 }
 
+/**
+ * KB 请求失败。带上 HTTP 状态与后端 `errorCode`，让调用方能区分
+ * 「知识库不存在」（404 `KB_NOT_FOUND`）与其它失败 —— 前者是用户选错了库，
+ * 应当提示并纠正选择，而不是当成网络故障静默吞掉。
+ */
+export class KbApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'KbApiError';
+    this.status = status;
+    this.code = code;
+  }
+
+  /** 知识库不存在（后端 404）。 */
+  get notFound(): boolean {
+    return this.status === 404;
+  }
+}
+
 /** 发一次 KB 请求并拆信封：非 2xx 或 `success !== true` 一律抛出可读错误。 */
 async function callJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${KB_ENDPOINT}${path}`, {
@@ -46,8 +68,10 @@ async function callJson<T>(path: string, init?: RequestInit): Promise<T> {
   const body = (await response.json().catch(() => null)) as KbEnvelope | null;
 
   if (!response.ok || body?.success !== true) {
-    throw new Error(
+    throw new KbApiError(
       body?.error || body?.errorCode || `知识库请求失败（HTTP ${response.status}）`,
+      response.status,
+      body?.errorCode,
     );
   }
 
@@ -71,6 +95,21 @@ export async function probeKnowledgeBase(signal?: AbortSignal): Promise<KbStatus
     log.warn('知识库服务不可用（后端未装配 kb 插件，或 /api/kb 未被代理）:', error);
     return { available: false, knowledgeBases: [] };
   }
+}
+
+/** 新建空知识库；已存在时后端回 409（`KB_EXISTS`）。 */
+export async function createKnowledgeBase(kbName: string): Promise<void> {
+  await callJson<{ kbName: string }>('/knowledge-bases', {
+    method: 'POST',
+    body: JSON.stringify({ kbName }),
+  });
+}
+
+/** 删除整个知识库（含全部文档与分块）；不存在时后端回 404（`KB_NOT_FOUND`）。 */
+export async function deleteKnowledgeBase(kbName: string): Promise<void> {
+  await callJson<{ removed: boolean }>(`/knowledge-bases/${encodeURIComponent(kbName)}`, {
+    method: 'DELETE',
+  });
 }
 
 /** 列出某知识库的文档。 */

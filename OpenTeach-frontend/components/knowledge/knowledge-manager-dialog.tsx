@@ -3,9 +3,10 @@
 /**
  * 知识库管理弹窗。
  *
- * 后端契约来自 `@openteach/plugin-kb`（`/api/kb/*`）。后端没有「创建空知识库」
- * 的接口 —— 知识库在首次入库文档时随之产生，因此「新建知识库」只是本地选中一个
- * 尚未存在的库名，随后由「索引文档」把它真正建出来。
+ * 后端契约来自 `@openteach/plugin-kb`（`/api/kb/*`）：`POST /knowledge-bases` 新建、
+ * `DELETE /knowledge-bases/:kbName` 整库删除、`POST /index` 入库。**目录以服务端为
+ * 唯一真相**：本弹窗每次变更都重新拉取库列表，并通过 `onCatalogChange` 通知调用方
+ * 刷新它自己的下拉 —— 否则弹窗里新建的库在表单里看不见，只能刷新页面。
  *
  * 服务不可用时（后端未装配 kb 插件、或 `/api/kb` 未被代理到 OpenTeach）只显示
  * 提示并禁用所有写操作，不抛错、不影响课堂生成。
@@ -40,7 +41,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { createLogger } from '@/lib/logger';
 import {
+  KbApiError,
+  createKnowledgeBase,
   deleteKbDocument,
+  deleteKnowledgeBase,
   indexKbDocument,
   listKbDocuments,
   probeKnowledgeBase,
@@ -53,12 +57,22 @@ const log = createLogger('KnowledgeManager');
 /** 与后端 `KB_NAME_PATTERN` 一致：挡路径穿越，也避免建出无法访问的库。 */
 const KB_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
+/** 待确认的删除目标：文档与整库走同一个确认弹窗。 */
+type PendingDelete =
+  | { kind: 'document'; document: KbDocument }
+  | { kind: 'knowledgeBase'; kbName: string };
+
 interface KnowledgeManagerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** 当前用于生成的知识库名；弹窗内切换会回调给调用方。 */
   activeKbName?: string;
   onActiveKbNameChange?: (kbName: string) => void;
+  /**
+   * 库列表（目录）发生变化时回调，参数为最新列表。
+   * 调用方据此刷新自己的知识库下拉；不回调就会留下陈旧列表。
+   */
+  onCatalogChange?: (kbNames: string[]) => void;
 }
 
 export function KnowledgeManagerDialog({
@@ -66,6 +80,7 @@ export function KnowledgeManagerDialog({
   onOpenChange,
   activeKbName,
   onActiveKbNameChange,
+  onCatalogChange,
 }: KnowledgeManagerDialogProps) {
   const { t } = useI18n();
 
@@ -84,7 +99,7 @@ export function KnowledgeManagerDialog({
 
   const [draft, setDraft] = useState({ title: '', text: '', source: '' });
   const [saving, setSaving] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<KbDocument | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
   const reloadDocuments = useCallback(async (kbName: string) => {
     if (!kbName) return;
@@ -104,8 +119,23 @@ export function KnowledgeManagerDialog({
     const status = await probeKnowledgeBase();
     setAvailable(status.available);
     setKnowledgeBases(status.knowledgeBases);
+    onCatalogChange?.(status.knowledgeBases);
     return status;
-  }, []);
+  }, [onCatalogChange]);
+
+  /**
+   * 在候选名里挑一个**确实存在**的：优先保留原选择，其次调用方传入的，最后取第一个。
+   * 用于把「库已被删掉 / 名字来自陈旧的 localStorage」这类悬空选择就地纠正，
+   * 否则界面会显示一个查不到的库名，生成时又静默检索空库。
+   */
+  const pickExistingKb = useCallback(
+    (kbNames: string[], preferred: string): string => {
+      if (preferred && kbNames.includes(preferred)) return preferred;
+      if (activeKbName && kbNames.includes(activeKbName)) return activeKbName;
+      return kbNames[0] ?? '';
+    },
+    [activeKbName],
+  );
 
   // 打开时探针 + 拉库列表。所有 setState 都在 await 之后，避免在 effect 里同步置态。
   useEffect(() => {
@@ -115,13 +145,22 @@ export function KnowledgeManagerDialog({
       setProbing(true);
       const status = await reloadKnowledgeBases();
       if (cancelled) return;
-      setSelectedKb((prev) => prev || activeKbName || status.knowledgeBases[0] || '');
+      setSelectedKb((prev) => pickExistingKb(status.knowledgeBases, prev));
       setProbing(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, activeKbName, reloadKnowledgeBases]);
+  }, [open, activeKbName, reloadKnowledgeBases, pickExistingKb]);
+
+  /**
+   * 把弹窗内的选择同步给调用方 —— 只在打开时同步：关闭时调用方可能自行改了选择，
+   * 此时再由弹窗反向覆盖会互相打架。选择被 `pickExistingKb` 纠正过也走这条路径。
+   */
+  useEffect(() => {
+    if (!open) return;
+    if (selectedKb !== activeKbName) onActiveKbNameChange?.(selectedKb);
+  }, [open, selectedKb, activeKbName, onActiveKbNameChange]);
 
   useEffect(() => {
     if (!open || !selectedKb) return;
@@ -130,20 +169,36 @@ export function KnowledgeManagerDialog({
 
   const selectKb = (kbName: string) => {
     setSelectedKb(kbName);
-    onActiveKbNameChange?.(kbName);
   };
 
-  const handleCreateKb = () => {
+  /** 新建：真正在后端落盘，成功后以服务端返回的目录为准刷新列表并选中它。 */
+  const handleCreateKb = async () => {
     const name = newKbName.trim();
     if (!KB_NAME_PATTERN.test(name)) {
       toast.error(t('knowledge.nameInvalid'));
       return;
     }
-    if (!knowledgeBases.includes(name)) {
-      setKnowledgeBases((prev) => [...prev, name].sort());
+    try {
+      await createKnowledgeBase(name);
+      setNewKbName('');
+      await reloadKnowledgeBases();
+      setSelectedKb(name);
+      toast.success(t('knowledge.manager.created', { kbName: name }));
+    } catch (error) {
+      // 已存在不是错误：名字打重了，直接切过去即可。
+      if (error instanceof KbApiError && error.status === 409) {
+        setNewKbName('');
+        await reloadKnowledgeBases();
+        setSelectedKb(name);
+        return;
+      }
+      log.error('新建知识库失败:', error);
+      toast.error(
+        t('knowledge.manager.failed', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+        }),
+      );
     }
-    setNewKbName('');
-    selectKb(name);
   };
 
   const handleIndex = async () => {
@@ -184,13 +239,27 @@ export function KnowledgeManagerDialog({
   const handleDelete = async () => {
     const target = pendingDelete;
     setPendingDelete(null);
-    if (!target || !selectedKb) return;
+    if (!target) return;
     try {
-      await deleteKbDocument(selectedKb, target.id);
-      await reloadDocuments(selectedKb);
-      toast.success(t('knowledge.manager.deleted'));
+      if (target.kind === 'document') {
+        if (!selectedKb) return;
+        await deleteKbDocument(selectedKb, target.document.id);
+        await reloadDocuments(selectedKb);
+        toast.success(t('knowledge.manager.deleted'));
+        return;
+      }
+
+      // 整库删除：删掉的是当前选中项时，要把选择一并落到仍然存在的库上，
+      // 否则列表没了、选择还在，编辑区会继续显示一个已消失的库。
+      const { kbName } = target;
+      await deleteKnowledgeBase(kbName);
+      const status = await reloadKnowledgeBases();
+      setSelectedKb((prev) =>
+        prev === kbName ? pickExistingKb(status.knowledgeBases, '') : prev,
+      );
+      toast.success(t('knowledge.manager.deletedKb', { kbName }));
     } catch (error) {
-      log.error('删除文档失败:', error);
+      log.error('删除失败:', error);
       toast.error(
         t('knowledge.manager.failed', {
           message: error instanceof Error ? error.message : 'Unknown error',
@@ -218,7 +287,24 @@ export function KnowledgeManagerDialog({
           <div className="flex min-h-[22rem] gap-3">
             {/* 知识库列表 */}
             <div className="flex w-48 shrink-0 flex-col gap-2">
-              <p className="text-xs font-medium text-muted-foreground">{t('knowledge.kbList')}</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t('knowledge.kbList')}
+                </p>
+                {selectedKb && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={t('knowledge.manager.deleteKb')}
+                    title={t('knowledge.manager.deleteKb')}
+                    onClick={() => setPendingDelete({ kind: 'knowledgeBase', kbName: selectedKb })}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
               <ScrollArea className="min-h-0 flex-1 rounded-lg border border-border/60">
                 <div className="space-y-0.5 p-1">
                   {knowledgeBases.map((kbName) => (
@@ -251,7 +337,7 @@ export function KnowledgeManagerDialog({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault();
-                      handleCreateKb();
+                      void handleCreateKb();
                     }
                   }}
                   placeholder={t('knowledge.newKbPlaceholder')}
@@ -263,7 +349,7 @@ export function KnowledgeManagerDialog({
                   size="icon"
                   className="size-8 shrink-0"
                   aria-label={t('knowledge.createKb')}
-                  onClick={handleCreateKb}
+                  onClick={() => void handleCreateKb()}
                 >
                   <Plus className="size-3.5" />
                 </Button>
@@ -301,7 +387,7 @@ export function KnowledgeManagerDialog({
                         size="icon"
                         className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
                         aria-label={t('knowledge.delete')}
-                        onClick={() => setPendingDelete(document)}
+                        onClick={() => setPendingDelete({ kind: 'document', document })}
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
@@ -377,8 +463,16 @@ export function KnowledgeManagerDialog({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('knowledge.delete')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('knowledge.deleteConfirm')}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {pendingDelete?.kind === 'knowledgeBase'
+                ? t('knowledge.manager.deleteKb')
+                : t('knowledge.delete')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.kind === 'knowledgeBase'
+                ? t('knowledge.manager.deleteKbConfirm')
+                : t('knowledge.deleteConfirm')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>

@@ -14,7 +14,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chunkText } from './chunking.js'
 import { buildTermFrequencies, tokenize } from './engine.js'
@@ -36,11 +36,17 @@ export function assertKbName(kbName: string): string {
 
 export interface KbStore {
   listKnowledgeBases(): Promise<string[]>
+  /** 知识库目录是否存在。读路径靠它区分「库不存在」与「库为空」。 */
+  hasKnowledgeBase(kbName: string): Promise<boolean>
+  /** 显式新建空知识库；已存在时返回 false（不覆盖既有内容）。 */
+  createKnowledgeBase(kbName: string): Promise<boolean>
+  /** 删除整个知识库目录（含全部文档与分块）；不存在时返回 false。 */
+  removeKnowledgeBase(kbName: string): Promise<boolean>
   listDocuments(kbName: string): Promise<KbDocument[]>
   loadChunks(kbName: string): Promise<KbChunk[]>
-  /** 切分、建索引并落盘，返回新建的文档。 */
+  /** 切分、建索引并落盘，返回新建的文档。库不存在时按「入库即建库」隐式创建。 */
   index(kbName: string, input: Omit<KbIndexInput, 'kbName'>, chunkSize: number, chunkOverlap: number): Promise<KbDocument>
-  /** 删除文档及其全部分块；文档不存在时返回 false。 */
+  /** 删除文档及其全部分块；文档或知识库不存在时返回 false。 */
   remove(kbName: string, documentId: string): Promise<boolean>
 }
 
@@ -61,11 +67,18 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 }
 
 export function createKbStore(dir: string): KbStore {
-  /** 知识库目录；已确保存在。 */
-  async function kbDir(kbName: string): Promise<string> {
-    const path = join(dir, assertKbName(kbName))
-    await mkdir(path, { recursive: true })
-    return path
+  /** 知识库目录路径。纯拼接，**不建目录**——读路径不能有副作用。 */
+  function pathOf(kbName: string): string {
+    return join(dir, assertKbName(kbName))
+  }
+
+  /** 目录是否存在（且确实是目录）。 */
+  async function isDir(path: string): Promise<boolean> {
+    try {
+      return (await stat(path)).isDirectory()
+    } catch {
+      return false
+    }
   }
 
   return {
@@ -82,19 +95,42 @@ export function createKbStore(dir: string): KbStore {
       }
     },
 
+    async hasKnowledgeBase(kbName) {
+      return isDir(pathOf(kbName))
+    },
+
+    async createKnowledgeBase(kbName) {
+      const path = pathOf(kbName)
+      if (await isDir(path)) return false
+      await mkdir(path, { recursive: true })
+      // 落一份空索引，让「新建的空库」在磁盘上是显式存在的状态，而不是靠目录本身推断。
+      await writeJson(join(path, 'documents.json'), [])
+      await writeJson(join(path, 'chunks.json'), [])
+      return true
+    },
+
+    async removeKnowledgeBase(kbName) {
+      const path = pathOf(kbName)
+      if (!(await isDir(path))) return false
+      await rm(path, { recursive: true, force: true })
+      return true
+    },
+
     async listDocuments(kbName) {
-      return readJson<KbDocument[]>(join(dir, assertKbName(kbName), 'documents.json'), [])
+      return readJson<KbDocument[]>(join(pathOf(kbName), 'documents.json'), [])
     },
 
     async loadChunks(kbName) {
-      return readJson<KbChunk[]>(join(dir, assertKbName(kbName), 'chunks.json'), [])
+      return readJson<KbChunk[]>(join(pathOf(kbName), 'chunks.json'), [])
     },
 
     async index(kbName, input, chunkSize, chunkOverlap) {
       const text = input.text.trim()
       if (text === '') throw new Error('入库文本为空：请先通过文档解析拿到正文后再入库')
 
-      const path = await kbDir(kbName)
+      // 入库即建库：这是新知识库的隐式创建路径（显式创建见 createKnowledgeBase）。
+      const path = pathOf(kbName)
+      await mkdir(path, { recursive: true })
       const documents = await readJson<KbDocument[]>(join(path, 'documents.json'), [])
       const chunks = await readJson<KbChunk[]>(join(path, 'chunks.json'), [])
 
@@ -130,7 +166,9 @@ export function createKbStore(dir: string): KbStore {
     },
 
     async remove(kbName, documentId) {
-      const path = await kbDir(kbName)
+      const path = pathOf(kbName)
+      // 库不存在就直接返回：删除不应把目录建出来（旧实现会在读路径上 mkdir）。
+      if (!(await isDir(path))) return false
       const documents = await readJson<KbDocument[]>(join(path, 'documents.json'), [])
       const remaining = documents.filter((document) => document.id !== documentId)
       if (remaining.length === documents.length) return false

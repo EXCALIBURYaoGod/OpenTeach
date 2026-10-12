@@ -1063,9 +1063,13 @@
     "manager": {
       "required": "Title and text are required",
       "needKb": "Select or create a knowledge base first",
-      "indexed": "Indexed \"{title}\"",
+      "indexed": "Indexed \"{{title}}\"",
       "deleted": "Document deleted",
-      "failed": "Failed: {message}"
+      "failed": "Failed: {{message}}",
+      "created": "Knowledge base \"{{kbName}}\" created",
+      "deletedKb": "Knowledge base \"{{kbName}}\" deleted",
+      "deleteKb": "Delete knowledge base",
+      "deleteKbConfirm": "Delete this knowledge base together with all its documents and index? This cannot be undone."
     }
   },
   "generation": {
@@ -1175,6 +1179,9 @@
     "webSearching": "Recherche web",
     "webSearchingDesc": "Recherche d’informations à jour sur le web",
     "webSearchFailed": "Échec de la recherche web",
+    "kbSearchHit": "{{hits}} extraits référencés depuis la base de connaissances « {{kbName}} »",
+    "kbSearchEmpty": "Aucun contenu pertinent dans la base de connaissances « {{kbName}} » — non utilisée",
+    "kbSearchFailed": "Échec de la recherche dans la base de connaissances « {{kbName}} » — ignorée",
     "outlinesReadyCount": "{{ready}} / {{total}} sections prêtes",
     "jumpToBlankTitle": "Aller à une section dont le titre manque encore",
     "analyzingMediaMaterial": "Analyse de l’audio et de la vidéo"

@@ -1063,9 +1063,13 @@
     "manager": {
       "required": "Title and text are required",
       "needKb": "Select or create a knowledge base first",
-      "indexed": "Indexed \"{title}\"",
+      "indexed": "Indexed \"{{title}}\"",
       "deleted": "Document deleted",
-      "failed": "Failed: {message}"
+      "failed": "Failed: {{message}}",
+      "created": "Knowledge base \"{{kbName}}\" created",
+      "deletedKb": "Knowledge base \"{{kbName}}\" deleted",
+      "deleteKb": "Delete knowledge base",
+      "deleteKbConfirm": "Delete this knowledge base together with all its documents and index? This cannot be undone."
     }
   },
   "generation": {
@@ -1175,6 +1179,9 @@
     "webSearching": "ウェブ検索",
     "webSearchingDesc": "ウェブで最新情報を検索しています",
     "webSearchFailed": "ウェブ検索に失敗しました",
+    "kbSearchHit": "ナレッジベース「{{kbName}}」の {{hits}} 件の抜粋を参照しました",
+    "kbSearchEmpty": "ナレッジベース「{{kbName}}」に関連する内容がないため、参照しませんでした",
+    "kbSearchFailed": "ナレッジベース「{{kbName}}」の検索に失敗したため、スキップしました",
     "outlinesReadyCount": "{{ready}} / {{total}} セクション準備完了",
     "jumpToBlankTitle": "タイトルが未入力のセクションへ移動",
     "analyzingMediaMaterial": "音声・動画を解析中"

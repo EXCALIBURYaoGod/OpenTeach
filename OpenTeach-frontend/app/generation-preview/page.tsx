@@ -3,7 +3,15 @@
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Sparkles, AlertCircle, AlertTriangle, ArrowLeft, Bot } from 'lucide-react';
+import {
+  CheckCircle2,
+  Sparkles,
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  Bot,
+  BookOpen,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -124,6 +132,13 @@ function GenerationPreviewContent() {
   const [webSearchSources, setWebSearchSources] = useState<Array<{ title: string; url: string }>>(
     [],
   );
+  // 知识库检索的可见反馈：检索只写 console 的话，用户无法判断「选中的库到底被用上了没有」。
+  // 三种终态分别对应：命中并注入上下文 / 库为空或未命中 / 检索失败（含库不存在）。
+  const [kbSearchStatus, setKbSearchStatus] = useState<{
+    state: 'hit' | 'empty' | 'failed';
+    kbName: string;
+    hits: number;
+  } | null>(null);
   const [showAgentReveal, setShowAgentReveal] = useState(false);
   const [isConfirmingOutlines, setIsConfirmingOutlines] = useState(false);
   const [generatedAgents, setGeneratedAgents] = useState<
@@ -542,11 +557,18 @@ function GenerationPreviewContent() {
             sessionStorage.setItem('generationSession', JSON.stringify(updatedSessionWithKb));
             currentSession = updatedSessionWithKb;
             log.info(`知识库「${kbResult.kbName}」返回 ${kbResult.hits.length} 条命中`);
+            setKbSearchStatus({
+              state: 'hit',
+              kbName: kbResult.kbName,
+              hits: kbResult.hits.length,
+            });
           } else {
             log.info(`知识库「${kbResult.kbName}」未命中任何分块，跳过上下文注入`);
+            setKbSearchStatus({ state: 'empty', kbName: kbResult.kbName, hits: 0 });
           }
         } catch (error) {
           log.warn('知识库检索失败，继续不带知识库上下文生成:', error);
+          setKbSearchStatus({ state: 'failed', kbName: currentSession.kbName, hits: 0 });
         }
       }
 
@@ -1511,6 +1533,43 @@ function GenerationPreviewContent() {
                           </div>
                         </TooltipContent>
                       </Tooltip>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* 知识库检索反馈：命中数 / 无命中 / 检索失败，三种终态各自可见 */}
+                <AnimatePresence>
+                  {kbSearchStatus && !error && !isComplete && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="flex justify-center"
+                    >
+                      <div
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs',
+                          kbSearchStatus.state === 'hit'
+                            ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : kbSearchStatus.state === 'empty'
+                              ? 'border-muted-foreground/20 bg-muted/40 text-muted-foreground'
+                              : 'border-amber-400/30 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                        )}
+                      >
+                        {kbSearchStatus.state === 'failed' ? (
+                          <AlertTriangle className="size-3" strokeWidth={2.5} />
+                        ) : (
+                          <BookOpen className="size-3" strokeWidth={2.5} />
+                        )}
+                        {kbSearchStatus.state === 'hit'
+                          ? t('generation.kbSearchHit', {
+                              kbName: kbSearchStatus.kbName,
+                              hits: kbSearchStatus.hits,
+                            })
+                          : kbSearchStatus.state === 'empty'
+                            ? t('generation.kbSearchEmpty', { kbName: kbSearchStatus.kbName })
+                            : t('generation.kbSearchFailed', { kbName: kbSearchStatus.kbName })}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

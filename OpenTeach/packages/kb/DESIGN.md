@@ -64,12 +64,14 @@ packages/kb/src/
 └── routes.ts          # Express 子路由（信封对齐 openmaic-core）
 ```
 
-### 3.1 检索：BM25 + CJK 二元组
+### 3.1 检索：BM25 + CJK 单字/二元组
 
 零依赖、零凭据，不引入 embedding 模型或外部向量库：
 
-- `tokenize()`：ASCII 词（≥2 字符、小写）+ **CJK 二元组**（`isCjk` 覆盖 0x3400–0x4dbf /
-  0x4e00–0x9fff / 0xf900–0xfaff）。二元组让中文查询无需分词器即可召回。
+- `tokenize()`：ASCII 词（≥2 字符、小写）+ **CJK 单字与二元组**（`isCjk` 覆盖
+  0x3400–0x4dbf / 0x4e00–0x9fff / 0xf900–0xfaff）。二元组让中文查询无需分词器即可
+  召回，单字同时入索引是为了让单字查询（「表」）也能命中 —— 代价是 BM25 的 `dl`
+  统计里含有单字项，语料极大时 `avgdl` 偏大、打分偏保守。
 - `buildTermFrequencies()`：入库时预计算 `terms`（词项 → 词频）与 `length`，检索时只打分。
 - `searchChunks()`：标准 BM25，`k1 = 1.2`、`b = 0.75`，
   `idf = log(1 + (N - df + 0.5) / (df + 0.5))`，
@@ -86,6 +88,17 @@ packages/kb/src/
 - 写入用「临时文件 + `rename`」保证原子性。
 - `KB_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/` 挡住路径穿越；非法库名在路由层就是 400。
 - 文档 id 用 `randomUUID()`，不引入额外依赖。
+- **「库存在」= 目录存在**，不靠「有没有文档」推断：`createKnowledgeBase()` 会显式
+  建目录并落两份空 JSON，因此空库在磁盘上是可见状态，`listKnowledgeBases()` 能列出它，
+  检索它返回 0 命中而不是 404。
+- **读路径无副作用**：`pathOf()` 只拼接路径，不 `mkdir`；只有 `index()` 与
+  `createKnowledgeBase()` 会建目录。旧实现把 `mkdir` 放在读路径上，导致「删掉文档后
+  目录又被重建」，空库永远删不干净。
+- **整库删除是目录级 `rm -rf`**（`removeKnowledgeBase()`），连同两份 JSON 一起删除；
+  库不存在时返回 false（→ 路由 404），不会先把目录建出来。
+- `documents.json` 与 `chunks.json` 是**两次独立的原子写**，两者之间没有跨文件事务：
+  进程在其中一次写完后崩溃，会留下元数据与分块不一致的库（本包按 MVP 接受这一窗口，
+  修复手段是重新入库该文档）。
 
 ### 3.3 多查询检索（Smart Retrieval）
 
@@ -107,10 +120,12 @@ packages/kb/src/
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/knowledge-bases` | → `{ data: { knowledgeBases: string[] } }` |
-| GET | `/:kbName/documents` | → `{ data: { documents: KbDocument[] } }` |
-| DELETE | `/:kbName/documents/:documentId` | → `{ data: { removed: boolean } }`（不存在为 404 `ASSET_NOT_FOUND`） |
-| POST | `/index` | body `{ kbName, title, text, source?, mimeType? }` → 201 `{ data: { document } }` |
-| POST | `/search` | body `{ kbName, query, topK?, smart? }` → `{ data: { ...KbSearchResult, context } }` |
+| POST | `/knowledge-bases` | body `{ kbName }` → 201 `{ data: { kbName, created: true } }`；已存在为 409 `KB_EXISTS` |
+| DELETE | `/knowledge-bases/:kbName` | 整库删除（含全部文档与分块）→ `{ data: { kbName, removed: true } }`；不存在为 404 `KB_NOT_FOUND` |
+| GET | `/:kbName/documents` | → `{ data: { documents: KbDocument[] } }`；库不存在为 404 `KB_NOT_FOUND` |
+| DELETE | `/:kbName/documents/:documentId` | → `{ data: { removed: boolean } }`；库不存在为 404 `KB_NOT_FOUND`，文档不存在为 404 `ASSET_NOT_FOUND` |
+| POST | `/index` | body `{ kbName, title, text, source?, mimeType? }` → 201 `{ data: { document } }`（库不存在时**随之创建**） |
+| POST | `/search` | body `{ kbName, query, topK?, smart? }` → `{ data: { ...KbSearchResult, context } }`；库不存在为 404 `KB_NOT_FOUND` |
 
 要点：
 
@@ -118,7 +133,13 @@ packages/kb/src/
 - `POST /search` 额外返回 **`context`** —— 已由 `formatKbResultsAsContext()` 拼好的字符串，
   调用方**不需要**自己拼装，直接当作 `externalContext` 透传即可。
 - 存储不可用（目录不可写）时全部接口返回 503 `KB_UNAVAILABLE`。
-- 知识库没有「创建」接口：**首次入库文档时随之产生**。
+- **新建与删除都挂在 `/knowledge-bases` 这个字面量路径上**，不写成 `POST /:kbName`：
+  Express 按注册顺序匹配，动态段会遮蔽 `/index`、`/search` 这些字面量路由。
+- **库不存在分两层处理**：HTTP 层用 `requireExistingKb()` 回 404 `KB_NOT_FOUND`，让调用方
+  能区分「库不存在 / 库为空 / 无命中」；服务层（`KbService.search()`）仍对不存在的库
+  返回空结果，保证内部调用方（课堂生成）不会被一次检索打断。
+- `POST /index` 是唯一「隐式建库」的入口（首次入库随之产生目录）；用户显式建空库走
+  `POST /knowledge-bases`。
 
 `context` 的形态：
 
@@ -140,6 +161,7 @@ packages/kb/src/
 | `eduLlm` 缺失 | 检索正常工作，smart 自动退化为单查询、`answer` 为空串 |
 | LLM 改写/聚合失败 | 各自 try/catch 回落到原查询 / 直接拼接 |
 | 检索命中为空 | `context` 为空串；调用方不注入，行为与不选知识库一致 |
+| 检索的库不存在 | HTTP 404 `KB_NOT_FOUND`；前端提示「检索失败，已跳过」并照常生成 |
 | 前端 `/api/kb` 不可达 | 探针失败 → 隐藏知识库入口（见 §6） |
 
 ---
@@ -151,21 +173,33 @@ packages/kb/src/
 
 | 位置 | 作用 |
 | --- | --- |
-| `lib/kb/client.ts` | 五个端点的类型化封装 + `probeKnowledgeBase()` 可用性探针 |
-| `components/knowledge/knowledge-manager-dialog.tsx` | 管理弹窗：库列表 / 文档列表 / 入库 / 删除 |
+| `lib/kb/client.ts` | 七个端点的类型化封装 + `KbApiError`（带 `status`/`code`/`notFound`）+ `probeKnowledgeBase()` 可用性探针 |
+| `components/knowledge/knowledge-manager-dialog.tsx` | 管理弹窗：库列表 / 文档列表 / 新建空库 / 入库 / 删文档 / **删整库** |
 | `app/page.tsx` | 生成表单新增「知识库」chip（Select + 管理入口），选用持久化到 `localStorage` |
-| `app/generation-preview/page.tsx` | 在联网调研之后发起 `/api/kb/search`，把 `context` 并入 `researchContext` |
+| `app/generation-preview/page.tsx` | 在联网调研之后发起 `/api/kb/search`，把 `context` 并入 `researchContext`，并给出可见反馈 |
 | `app/generation-preview/types.ts` | 会话新增 `kbName?: string` |
+
+**目录以服务端为唯一真相**：弹窗每次变更（新建 / 删除）都重新拉 `GET /knowledge-bases`，
+并通过 `onCatalogChange` 把最新列表回调给表单 —— 否则弹窗里新建的库在表单下拉里看不见，
+只能刷新页面。表单侧同理：探针成功后再校验一次已存的 `kbName` 是否仍在目录中，不在就
+清空选择并同步清掉 `localStorage`。
 
 **入口可见性由探针决定**：`probeKnowledgeBase()` 失败（后端未装配本插件，或 `/api/kb`
 未被代理）时返回 `available: false`，表单不渲染整行知识库入口 —— 与仓库既有的
 「后端未实现的入口一律隐藏」约定一致。
 
-**降级**：preview 里的检索失败只 `log.warn`，继续不带该上下文生成大纲。
+**降级 + 反馈**：preview 里的检索失败只提示、不阻断生成 —— 命中注入上下文时显示
+「已引用 N 条片段」，未命中显示「无相关内容」，失败（含 404 `KB_NOT_FOUND`）显示
+「检索失败，已跳过」，三种终态都有可见文案，不再只写 console。
 
 ### 端到端用法
 
 ```bash
+# 0. （可选）显式建一个空库；入库也会隐式建库
+curl -X POST http://127.0.0.1:8787/api/kb/knowledge-bases \
+  -H 'Content-Type: application/json' \
+  -d '{"kbName":"fpga"}'
+
 # 1. 入库
 curl -X POST http://127.0.0.1:8787/api/kb/index \
   -H 'Content-Type: application/json' \
@@ -180,6 +214,9 @@ curl -X POST http://127.0.0.1:8787/api/kb/search \
 curl -X POST http://127.0.0.1:8787/api/generate-classroom \
   -H 'Content-Type: application/json' \
   -d '{"requirement":"讲一节 FPGA 入门课","externalContext":"<上一步的 data.context>"}'
+
+# 4. 整库删除
+curl -X DELETE http://127.0.0.1:8787/api/kb/knowledge-bases/fpga
 ```
 
 前端走的是 `scene-outlines-stream` 那条链路，它的请求体**本来就有 `researchContext`**，

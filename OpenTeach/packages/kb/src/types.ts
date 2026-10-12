@@ -70,7 +70,11 @@ export interface KbSearchResult {
 /** 检索入参。 */
 export interface KbSearchInput {
   query: string
-  /** 知识库名。必填且必须已存在：不回落默认库（与参考实现 `rag_search` 一致）。 */
+  /**
+   * 知识库名。必填且必须已存在：不回落默认库（与参考实现 `rag_search` 一致）。
+   * 存在性由 **HTTP 层**校验（库不存在回 404 `KB_NOT_FOUND`）；服务层保持优雅降级
+   * ——库不存在时返回空结果，避免内部调用方（课堂生成）被一次检索失败打断。
+   */
   kbName: string
   /** 返回条数上限；省略时取配置默认值。 */
   topK?: number
@@ -101,6 +105,12 @@ export interface KbService {
   router: RequestHandler
   /** 列出已存在的知识库名。 */
   listKnowledgeBases(): Promise<string[]>
+  /** 知识库是否存在。读路径靠它区分「库不存在」与「库为空」。 */
+  hasKnowledgeBase(kbName: string): Promise<boolean>
+  /** 新建空知识库；已存在时返回 false。 */
+  createKnowledgeBase(kbName: string): Promise<boolean>
+  /** 删除整个知识库（含全部文档与分块）；不存在时返回 false。 */
+  removeKnowledgeBase(kbName: string): Promise<boolean>
   /** 列出某知识库的文档。 */
   listDocuments(kbName: string): Promise<KbDocument[]>
   /** 入库：切分 + 建索引。 */

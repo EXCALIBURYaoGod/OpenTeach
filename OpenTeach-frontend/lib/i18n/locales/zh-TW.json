@@ -1048,9 +1048,13 @@
     "manager": {
       "required": "標題與內文均為必填",
       "needKb": "請先選擇或新建知識庫",
-      "indexed": "已索引「{title}」",
+      "indexed": "已索引「{{title}}」",
       "deleted": "已刪除文件",
-      "failed": "操作失敗：{message}"
+      "failed": "操作失敗：{{message}}",
+      "created": "已新建知識庫「{{kbName}}」",
+      "deletedKb": "已刪除知識庫「{{kbName}}」",
+      "deleteKb": "刪除知識庫",
+      "deleteKbConfirm": "確認刪除該知識庫及其全部文件與索引？此操作無法復原。"
     }
   },
   "generation": {
@@ -1160,6 +1164,9 @@
     "webSearching": "網路搜尋",
     "webSearchingDesc": "正在搜尋網路取得最新資料",
     "webSearchFailed": "網路搜尋失敗",
+    "kbSearchHit": "已引用知識庫「{{kbName}}」的 {{hits}} 條片段",
+    "kbSearchEmpty": "知識庫「{{kbName}}」無相關內容，未引用",
+    "kbSearchFailed": "知識庫「{{kbName}}」檢索失敗，已略過",
     "outlinesReadyCount": "{{ready}} / {{total}} 章節就緒",
     "jumpToBlankTitle": "跳至待補充標題的章節",
     "analyzingMediaMaterial": "解析音影片內容"

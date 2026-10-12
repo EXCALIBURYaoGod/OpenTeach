@@ -1063,9 +1063,13 @@
     "manager": {
       "required": "标题与正文均为必填",
       "needKb": "请先选择或新建知识库",
-      "indexed": "已索引「{title}」",
+      "indexed": "已索引「{{title}}」",
       "deleted": "已删除文档",
-      "failed": "操作失败：{message}"
+      "failed": "操作失败：{{message}}",
+      "created": "已新建知识库「{{kbName}}」",
+      "deletedKb": "已删除知识库「{{kbName}}」",
+      "deleteKb": "删除知识库",
+      "deleteKbConfirm": "确认删除该知识库及其全部文档与索引？此操作不可撤销。"
     }
   },
   "generation": {
@@ -1175,6 +1179,9 @@
     "webSearching": "网络搜索",
     "webSearchingDesc": "正在搜索网络获取最新资料",
     "webSearchFailed": "网络搜索失败",
+    "kbSearchHit": "已引用知识库「{{kbName}}」的 {{hits}} 条片段",
+    "kbSearchEmpty": "知识库「{{kbName}}」无相关内容，未引用",
+    "kbSearchFailed": "知识库「{{kbName}}」检索失败，已跳过",
     "outlinesReadyCount": "{{ready}} / {{total}} 章节就绪",
     "jumpToBlankTitle": "跳到待补充标题的章节",
     "analyzingMediaMaterial": "解析音视频内容"

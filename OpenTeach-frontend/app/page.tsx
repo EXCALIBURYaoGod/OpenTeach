@@ -236,6 +236,7 @@ function HomePage() {
       if (controller.signal.aborted) return;
       setKbAvailable(status.available);
       setKnowledgeBases(status.knowledgeBases);
+      setKbProbed(true);
     })();
     return () => controller.abort();
   }, []);
@@ -270,7 +271,28 @@ function HomePage() {
   // 列表为空但服务可用，入口仍要露出，否则用户无法创建第一个知识库。
   const [kbAvailable, setKbAvailable] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<string[]>([]);
+  // 探针是否已经拿到过结果。用它把「还没探测」与「探测到空目录」区分开，
+  // 否则挂载瞬间（列表为空 + 可用）会把刚水合的缓存库名误判为已不存在。
+  const [kbProbed, setKbProbed] = useState(false);
   const [kbManagerOpen, setKbManagerOpen] = useState(false);
+
+  // The catalog (server-side directories) is the single source of truth: a name
+  // kept in localStorage or left over from a deleted knowledge base must not
+  // survive, otherwise the select renders a placeholder while generation still
+  // searches a library that no longer exists. Skipped when the probe failed —
+  // an empty list then means "unavailable", not "nothing exists".
+  // Must sit *after* the kb state declarations: a dependency array is evaluated
+  // during render, so referencing them earlier trips the temporal dead zone.
+  useEffect(() => {
+    if (!kbProbed || !kbAvailable || !form.kbName) return;
+    if (knowledgeBases.includes(form.kbName)) return;
+    setForm((prev) => ({ ...prev, kbName: '' }));
+    try {
+      localStorage.removeItem(KB_NAME_STORAGE_KEY);
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, [kbProbed, kbAvailable, knowledgeBases, form.kbName]);
 
   // Course folders — device-local grouping. `currentFolderId === undefined`
   // is the root view (folders + unfiled courses); a folder id navigates into
@@ -1053,6 +1075,9 @@ function HomePage() {
           onOpenChange={setKbManagerOpen}
           activeKbName={form.kbName}
           onActiveKbNameChange={(kbName) => updateForm('kbName', kbName)}
+          // 弹窗内新建/删除知识库后把最新目录同步回来：否则下拉仍是挂载时那份
+          // 列表，刚建的库要刷新页面才看得见。
+          onCatalogChange={setKnowledgeBases}
         />
 
         {showVocationalTestUi && (

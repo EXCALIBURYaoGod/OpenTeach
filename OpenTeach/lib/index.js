@@ -14,7 +14,7 @@ import { isIP } from "node:net";
 import { Readable } from "stream";
 import { STATUS_CODES, createServer } from "node:http";
 import { homedir, platform, release, tmpdir } from "node:os";
-import { access, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { PassThrough, Readable as Readable$1, Writable } from "node:stream";
 import * as zlib$1 from "node:zlib";
 import { env, versions } from "node:process";
@@ -301956,6 +301956,7 @@ var options2;
 var resolutionStarted2;
 var resetHooks2;
 var init_config5 = __esm({ "packages/openmaic-core/src/lib/document-store/config.ts"() {
+	"use strict";
 	init_validators();
 	resolutionStarted2 = false;
 	resetHooks2 = [];
@@ -302533,7 +302534,6 @@ var fallbackWriter;
 var RuntimeStorageLockAcquisitionTimeoutError;
 var withChatStorageSharedLock;
 var init_chat_storage_lock = __esm({ "packages/openmaic-core/src/lib/utils/chat-storage-lock.ts"() {
-	"use strict";
 	CHAT_STORAGE_GLOBAL_LOCK = "openmaic:chat-storage:all";
 	DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS = 5e3;
 	fallbackWaiters = [];
@@ -305165,6 +305165,7 @@ var inFlightPblSessions;
 var inFlightPblDrains;
 var activePblDrainWork;
 var init_drain = __esm({ "packages/openmaic-core/src/lib/pbl/v2/runtime/drain.ts"() {
+	"use strict";
 	init_dist8();
 	init_learner_key();
 	init_store3();
@@ -389008,11 +389009,17 @@ async function writeJson(path, value) {
 	await rename(temporary, path);
 }
 function createKbStore(dir) {
-	/** 知识库目录；已确保存在。 */
-	async function kbDir(kbName) {
-		const path = join(dir, assertKbName(kbName));
-		await mkdir(path, { recursive: true });
-		return path;
+	/** 知识库目录路径。纯拼接，**不建目录**——读路径不能有副作用。 */
+	function pathOf(kbName) {
+		return join(dir, assertKbName(kbName));
+	}
+	/** 目录是否存在（且确实是目录）。 */
+	async function isDir(path) {
+		try {
+			return (await stat(path)).isDirectory();
+		} catch {
+			return false;
+		}
 	}
 	return {
 		async listKnowledgeBases() {
@@ -389022,16 +389029,37 @@ function createKbStore(dir) {
 				return [];
 			}
 		},
+		async hasKnowledgeBase(kbName) {
+			return isDir(pathOf(kbName));
+		},
+		async createKnowledgeBase(kbName) {
+			const path = pathOf(kbName);
+			if (await isDir(path)) return false;
+			await mkdir(path, { recursive: true });
+			await writeJson(join(path, "documents.json"), []);
+			await writeJson(join(path, "chunks.json"), []);
+			return true;
+		},
+		async removeKnowledgeBase(kbName) {
+			const path = pathOf(kbName);
+			if (!await isDir(path)) return false;
+			await rm(path, {
+				recursive: true,
+				force: true
+			});
+			return true;
+		},
 		async listDocuments(kbName) {
-			return readJson(join(dir, assertKbName(kbName), "documents.json"), []);
+			return readJson(join(pathOf(kbName), "documents.json"), []);
 		},
 		async loadChunks(kbName) {
-			return readJson(join(dir, assertKbName(kbName), "chunks.json"), []);
+			return readJson(join(pathOf(kbName), "chunks.json"), []);
 		},
 		async index(kbName, input, chunkSize, chunkOverlap) {
 			const text = input.text.trim();
 			if (text === "") throw new Error("入库文本为空：请先通过文档解析拿到正文后再入库");
-			const path = await kbDir(kbName);
+			const path = pathOf(kbName);
+			await mkdir(path, { recursive: true });
 			const documents = await readJson(join(path, "documents.json"), []);
 			const chunks = await readJson(join(path, "chunks.json"), []);
 			const documentId = randomUUID();
@@ -389062,7 +389090,8 @@ function createKbStore(dir) {
 			return document;
 		},
 		async remove(kbName, documentId) {
-			const path = await kbDir(kbName);
+			const path = pathOf(kbName);
+			if (!await isDir(path)) return false;
 			const documents = await readJson(join(path, "documents.json"), []);
 			const remaining = documents.filter((document) => document.id !== documentId);
 			if (remaining.length === documents.length) return false;
@@ -389135,18 +389164,61 @@ function createKbRouter(service) {
 		failure(res, 503, "KB_UNAVAILABLE", "知识库存储不可用", "请检查 OPENTEACH_KB_DIR 指向的目录是否可写");
 		return false;
 	}
+	/**
+	* 知识库必须已存在，否则 404。
+	*
+	* 这是「库不存在」与「库为空 / 未命中」的分界：两者都返回空结果会让调用方
+	* （尤其前端）无法判断是不是选错了库，只能静默退化。服务层不受影响——它仍
+	* 对不存在的库返回空结果，保证课堂生成不会被一次检索打断。
+	*/
+	async function requireExistingKb(res, kbName) {
+		if (await service.hasKnowledgeBase(kbName)) return true;
+		failure(res, 404, "KB_NOT_FOUND", "知识库不存在", `知识库 "${kbName}" 尚未创建`);
+		return false;
+	}
 	router.get("/knowledge-bases", handle(async (_req, res) => {
 		if (!requireAvailable(res)) return;
 		success(res, { data: { knowledgeBases: await service.listKnowledgeBases() } });
 	}));
+	router.post("/knowledge-bases", handle(async (req, res) => {
+		if (!requireAvailable(res)) return;
+		const kbName = readString((req.body ?? {}).kbName);
+		if (kbName === void 0) {
+			failure(res, 400, "MISSING_REQUIRED_FIELD", "缺少必填字段：kbName");
+			return;
+		}
+		if (rejectInvalidKbName(res, kbName)) return;
+		if (!await service.createKnowledgeBase(kbName)) {
+			failure(res, 409, "KB_EXISTS", "知识库已存在", `知识库 "${kbName}" 已存在`);
+			return;
+		}
+		success(res, { data: {
+			kbName,
+			created: true
+		} }, 201);
+	}));
+	router.delete("/knowledge-bases/:kbName", handle(async (req, res) => {
+		if (!requireAvailable(res)) return;
+		if (rejectInvalidKbName(res, req.params.kbName)) return;
+		if (!await service.removeKnowledgeBase(req.params.kbName)) {
+			failure(res, 404, "KB_NOT_FOUND", "知识库不存在");
+			return;
+		}
+		success(res, { data: {
+			kbName: req.params.kbName,
+			removed: true
+		} });
+	}));
 	router.get("/:kbName/documents", handle(async (req, res) => {
 		if (!requireAvailable(res)) return;
 		if (rejectInvalidKbName(res, req.params.kbName)) return;
+		if (!await requireExistingKb(res, req.params.kbName)) return;
 		success(res, { data: { documents: await service.listDocuments(req.params.kbName) } });
 	}));
 	router.delete("/:kbName/documents/:documentId", handle(async (req, res) => {
 		if (!requireAvailable(res)) return;
 		if (rejectInvalidKbName(res, req.params.kbName)) return;
+		if (!await requireExistingKb(res, req.params.kbName)) return;
 		const removed = await service.remove(req.params.kbName, req.params.documentId);
 		if (!removed) {
 			failure(res, 404, "ASSET_NOT_FOUND", "文档不存在");
@@ -389185,6 +389257,7 @@ function createKbRouter(service) {
 			return;
 		}
 		if (rejectInvalidKbName(res, kbName)) return;
+		if (!await requireExistingKb(res, kbName)) return;
 		const topK = readPositiveInt(body.topK);
 		const result = await service.search({
 			kbName,
@@ -389377,6 +389450,9 @@ function apply$2(ctx, config = {}) {
 	const capabilities = {
 		available,
 		listKnowledgeBases: () => store.listKnowledgeBases(),
+		hasKnowledgeBase: (kbName) => store.hasKnowledgeBase(kbName),
+		createKnowledgeBase: (kbName) => store.createKnowledgeBase(kbName),
+		removeKnowledgeBase: (kbName) => store.removeKnowledgeBase(kbName),
 		listDocuments: (kbName) => store.listDocuments(kbName),
 		index: (input) => store.index(input.kbName, input, resolved.chunkSize, resolved.chunkOverlap),
 		remove: (kbName, documentId) => store.remove(kbName, documentId),

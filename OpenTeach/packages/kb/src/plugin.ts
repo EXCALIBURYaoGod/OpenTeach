@@ -140,6 +140,9 @@ export function apply(ctx: Context, config: Partial<KbConfig> = {}): () => void 
   const capabilities: Omit<KbService, 'router'> = {
     available,
     listKnowledgeBases: () => store.listKnowledgeBases(),
+    hasKnowledgeBase: (kbName) => store.hasKnowledgeBase(kbName),
+    createKnowledgeBase: (kbName) => store.createKnowledgeBase(kbName),
+    removeKnowledgeBase: (kbName) => store.removeKnowledgeBase(kbName),
     listDocuments: (kbName) => store.listDocuments(kbName),
     index: (input: KbIndexInput) =>
       store.index(input.kbName, input, resolved.chunkSize, resolved.chunkOverlap),

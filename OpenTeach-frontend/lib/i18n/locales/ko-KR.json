@@ -1063,9 +1063,13 @@
     "manager": {
       "required": "Title and text are required",
       "needKb": "Select or create a knowledge base first",
-      "indexed": "Indexed \"{title}\"",
+      "indexed": "Indexed \"{{title}}\"",
       "deleted": "Document deleted",
-      "failed": "Failed: {message}"
+      "failed": "Failed: {{message}}",
+      "created": "Knowledge base \"{{kbName}}\" created",
+      "deletedKb": "Knowledge base \"{{kbName}}\" deleted",
+      "deleteKb": "Delete knowledge base",
+      "deleteKbConfirm": "Delete this knowledge base together with all its documents and index? This cannot be undone."
     }
   },
   "generation": {
@@ -1175,6 +1179,9 @@
     "webSearching": "웹 검색",
     "webSearchingDesc": "최신 정보를 웹에서 검색하고 있어요",
     "webSearchFailed": "웹 검색에 실패했습니다",
+    "kbSearchHit": "지식 베이스 \"{{kbName}}\"의 발췌 {{hits}}건을 참조했습니다",
+    "kbSearchEmpty": "지식 베이스 \"{{kbName}}\"에 관련 내용이 없어 참조하지 않았습니다",
+    "kbSearchFailed": "지식 베이스 \"{{kbName}}\" 검색에 실패하여 건너뛰었습니다",
     "outlinesReadyCount": "{{ready}} / {{total}}개 섹션 준비됨",
     "jumpToBlankTitle": "제목이 필요한 섹션으로 이동",
     "analyzingMediaMaterial": "오디오/비디오 분석 중"
