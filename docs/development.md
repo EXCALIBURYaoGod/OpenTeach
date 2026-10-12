@@ -7,14 +7,14 @@
 | Node.js | ≥ 20（`@openteach/bundle` 的 `engines`）；前端要求 ≥ 22.19 | 前端见 `OpenTeach-frontend/.nvmrc` |
 | pnpm | monorepo 工作区 | 前后端各自有 `pnpm-workspace.yaml` |
 | dsh | `dsh` 在 `PATH` 上，或有 harness checkout | 镜像 `pnpm dsh web` |
-| harness checkout | 含 `packages/` 与 `vendor/` 目录 | 本仓库约定放在 `deepseek-harness/`；可用 `DSH_CHECKOUT` 指到别处 |
+| harness checkout | 含 `packages/` 与 `vendor/` 目录 | 仓库内只读留存一份在 `references/deepseek-harness/`；构建请用 `DSH_CHECKOUT` 指向**本机实际使用**的那份（本机为 `E:\AgentDev\LuPin\deepseek-harness-master`） |
 | PostgreSQL | 可选（16） | 仅 OpenMAIC 核心链路的 stages / persistence 需要 |
 
 ## 2. 构建后端
 
 ```sh
 cd OpenTeach
-bash scripts/build.sh
+DSH_CHECKOUT=/path/to/deepseek-harness bash scripts/build.sh   # 不设则尝试从 PATH 上的 dsh 反推
 ```
 
 [`scripts/build.sh`](../OpenTeach/scripts/build.sh) 做三件事：
@@ -182,7 +182,7 @@ widget HTML 里有未捕获异常，整个 `<script>` 中断。用浏览器控�
 （行号是 `srcDoc` 行号，需减去注入 shim 的偏移）。常见原因：调用了字符串上不存在
 的方法（如 `.code.bold()`）。详见 [frontend.md](./frontend.md) 第 4.1 节。
 
-**Q：`dsh-openmaic/` 目录是什么？**
+**Q：`references/dsh-openmaic/` 目录是什么？**
 上游 [THU-MAIC/dsh-openmaic](https://github.com/THU-MAIC/dsh-openmaic) 的独立仓库
 （自带 `.git`），是另一个把 OpenMAIC 带进 dsh 的插件，**不是本项目的产物**，也不在
 本仓库的版本控制内。

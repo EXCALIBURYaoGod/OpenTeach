@@ -147,9 +147,12 @@ copyDir(path.join(generationRoot, 'prompts-pbl'), path.join(ASSETS, 'prompts-pbl
  * 由组装层经 `OPENMAIC_LIB_PROMPTS_DIR` 指过来。
  */
 // 该目录不在 `@openmaic/generation` 的解析链上（pnpm 把 file: 依赖复制进
-// `.pnpm/` 后，包的上游仓库根已不可达），故按 package.json 里 `file:../../../OpenMAIC`
-// 同款的相邻 checkout 布局定位，与 `generationRoot` 的用途保持一致。
-const libPrompts = path.resolve(HERE, '..', '..', '..', 'OpenMAIC', 'lib', 'prompts')
+// `.pnpm/` 后，包的上游仓库根已不可达），故按 package.json 里
+// `file:../../../references/OpenMAIC` 同款的相邻 checkout 布局定位，与
+// `generationRoot` 的用途保持一致。
+const libPrompts = path.resolve(
+  HERE, '..', '..', '..', 'references', 'OpenMAIC', 'lib', 'prompts',
+)
 if (!existsSync(libPrompts)) {
   throw new Error(`openmaic-core: app-level prompts not found at ${libPrompts}`)
 }

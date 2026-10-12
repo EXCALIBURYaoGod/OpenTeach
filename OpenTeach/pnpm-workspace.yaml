@@ -1,11 +1,11 @@
 packages:
   - 'packages/*'
 
-# @openmaic/generation / @openmaic/storage 以 file: 链接自 OpenMAIC 仓库，其内部用
-# `workspace:^` 声明对 @openmaic/dsl 的依赖；跨 workspace 无法解析该协议，故在此把
-# @openmaic/dsl 统一改写为指向 OpenMAIC 仓库的 file: 路径。
+# @openmaic/generation / @openmaic/storage 以 file: 链接自 references/OpenMAIC 仓库，
+# 其内部用 `workspace:^` 声明对 @openmaic/dsl 的依赖；跨 workspace 无法解析该协议，
+# 故在此把 @openmaic/dsl 统一改写为指向该仓库的 file: 路径。
 overrides:
-  '@openmaic/dsl': 'file:../OpenMAIC/packages/@openmaic/dsl'
+  '@openmaic/dsl': 'file:../references/OpenMAIC/packages/@openmaic/dsl'
 
 # pnpm 12 默认拦截依赖的构建脚本，需逐个显式放行/忽略。
 # esbuild 需要其平台二进制（构建 openmaic-core 时用）；sharp 是 openmaic-core 的

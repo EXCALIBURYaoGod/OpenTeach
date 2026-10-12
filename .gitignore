@@ -4,11 +4,14 @@ node_modules/
 .trae/
 
 # 嵌套仓库 git 历史备份（不移除文件本身，仅不入库）
-deepseek-harness/.git.bak/
-OpenMAIC/.git.bak/
+references/deepseek-harness/.git.bak/
+references/OpenMAIC/.git.bak/
 OpenTeach/.git.bak/
 # OpenTeach 运行期提示词软链：bundle 按 cwd/lib/prompts 读取，指向 assets/prompts
 OpenTeach/lib/prompts/
+
+# 第三方参考仓库（只读参考，不入库）
+references/
 
 # 根级环境与日志兜底
 .env

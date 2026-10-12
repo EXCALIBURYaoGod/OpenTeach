@@ -27,8 +27,8 @@
 
 | 目录 | 角色 |
 | --- | --- |
-| `OpenMAIC/` | 上游只读参考（[THU-MAIC/OpenMAIC](https://github.com/THU-MAIC/OpenMAIC)）。不改动，作为移植来源与契约对照 |
+| `references/OpenMAIC/` | 上游只读参考（[THU-MAIC/OpenMAIC](https://github.com/THU-MAIC/OpenMAIC)）。不改动，作为移植来源与契约对照，同时是 `@openmaic/{dsl,generation,storage}` 的 `file:` 依赖源 |
 | `OpenTeach/` | 本项目后端：dsh 插件包，承载重构后的服务端 |
 | `OpenTeach-frontend/` | 本项目前端：移植自 OpenMAIC 前端，改接 OpenTeach 后端 |
-| `deepseek-harness/` | 本地 dsh checkout，构建期用于软链 `@deepseek-ai/*` 宿主包 |
-| `dsh-openmaic/` | 上游独立仓库（[THU-MAIC/dsh-openmaic](https://github.com/THU-MAIC/dsh-openmaic)），另一个把 OpenMAIC 带进 dsh 的插件，非本项目产物 |
+| `references/deepseek-harness/` | dsh 宿主 checkout，构建期用于软链 `@deepseek-ai/*` 宿主包（**本机实际使用的 checkout 在仓库外，见 [development.md](./development.md#1-前置条件)**） |
+| `references/dsh-openmaic/` | 上游独立仓库（[THU-MAIC/dsh-openmaic](https://github.com/THU-MAIC/dsh-openmaic)），另一个把 OpenMAIC 带进 dsh 的插件，非本项目产物 |

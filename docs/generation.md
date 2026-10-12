@@ -94,10 +94,10 @@
 3. **启动时注入**：组装层 `configurePromptAssets()` 在 `apply()` 首行按包根目录解析
    `assets/` 并写入上述三个环境变量（宿主已显式设置时不覆盖）。
 
-> 为什么用 `path.resolve(HERE, '..','..','..','OpenMAIC','lib','prompts')` 而不是从
-> `@openmaic/generation` 的解析结果上溯：pnpm 把 `file:` 依赖复制进 `.pnpm/` 后，
-> 包的上游仓库根**已不可达**。故按相邻 checkout 布局定位，与 package.json 中
-> `file:../../../OpenMAIC` 同款约定。
+> 为什么用 `path.resolve(HERE, '..','..','..','references','OpenMAIC','lib','prompts')`
+> 而不是从 `@openmaic/generation` 的解析结果上溯：pnpm 把 `file:` 依赖复制进 `.pnpm/`
+> 后，包的上游仓库根**已不可达**。故按相邻 checkout 布局定位，与 package.json 中
+> `file:../../../references/OpenMAIC` 同款约定。
 
 资产目录**随包发布**（`package.json` 的 `files` 含 `assets`），因此 git 安装的
 dsh 插件无需任何构建步骤即可加载提示词。

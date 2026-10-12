@@ -16,8 +16,13 @@ DSH-OpenMAIC 是基于 **DeepSeek Harness（dsh）** 对 [OpenMAIC](https://gith
 
 ```
 DSH-Openmaic/
-├─ deepseek-harness/       dsh 宿主 checkout（构建期软链 @deepseek-ai/*）
-├─ OpenMAIC/               上游只读参考（移植来源）
+├─ references/            第三方参考仓库（只读，不入库）
+│  ├─ OpenMAIC/           上游移植来源；@openmaic/* 的 file: 依赖源
+│  ├─ deepseek-harness/   dsh 宿主 checkout（构建期软链 @deepseek-ai/*）
+│  ├─ dsh-openmaic/       上游另一个 dsh 插件仓库
+│  ├─ DeepTutor/          KB 检索参考实现
+│  ├─ Edu-RAG/            KB 检索参考实现
+│  └─ EduClaw/            已弃用
 ├─ OpenTeach/              后端：@openteach/bundle（dsh 插件）
 │  ├─ src/index.ts         组装入口（bundle 的 node 半部 = dsh 插件）
 │  ├─ packages/            11 个模块插件 + shared

@@ -40,6 +40,8 @@
 ```sh
 # 1. 构建后端插件（软链宿主包 → 构建 openmaic-core → 打包 lib/index.js）
 cd OpenTeach && bash scripts/build.sh
+#    harness checkout 不在仓库内时显式指定（本机：/mnt/e/AgentDev/LuPin/deepseek-harness-master）
+#    DSH_CHECKOUT=<harness 路径> bash scripts/build.sh
 
 # 2. 注册为 dsh 插件（用户层，推荐本地迭代）
 #    把 OpenTeach/cordis.patch.yml 的 insert 行写入 $DSH_HOME/profiles/<name>/cordis.patch.yml
@@ -64,9 +66,7 @@ pnpm dev            # http://localhost:3000
 | `OpenTeach/` | **后端**：`@openteach/bundle` —— dsh 插件包，组装 11 个 `@openteach/plugin-*` 模块插件；含随包发布的提示词资产 `assets/` 与单文件产物 `lib/index.js` |
 | `OpenTeach-frontend/` | **前端**：`@openteach/frontend` —— Next.js 移植自 OpenMAIC 前端，接口改接 OpenTeach 后端 |
 | `docs/` | 技术文档（见下） |
-| `OpenMAIC/` | 上游只读参考，移植来源与契约对照 |
-| `deepseek-harness/` | 本地 dsh checkout，构建期用于软链 `@deepseek-ai/*` 宿主包 |
-| `dsh-openmaic/` | 上游 [THU-MAIC/dsh-openmaic](https://github.com/THU-MAIC/dsh-openmaic) 的独立仓库（非本项目产物，不在本仓库版本控制内） |
+| `references/` | 第三方参考仓库（只读，**不入库**）：`OpenMAIC/`（上游移植来源与 `@openmaic/*` 契约对照）、`deepseek-harness/`（dsh 宿主 checkout，构建期软链 `@deepseek-ai/*`）、`dsh-openmaic/`、`DeepTutor/`、`Edu-RAG/`、`EduClaw/` |
 
 ## 技术文档
 
