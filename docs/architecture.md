@@ -2,7 +2,7 @@
 
 ## 1. 定位
 
-DSH-OpenMAIC 是基于 **DeepSeek Harness（dsh）** 对 [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) 的重构：
+OpenTeach 是基于 **DeepSeek Harness（dsh）** 对 [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) 的重构：
 
 - **后端**（`OpenTeach/`）不做成一个独立 Web 服务，而是做成**一个 dsh 插件包** `@openteach/bundle`；
   它把一个教学内核与 OpenMAIC 的核心服务端链路，按依赖顺序组装成 12 个模块插件；
@@ -15,7 +15,7 @@ DSH-OpenMAIC 是基于 **DeepSeek Harness（dsh）** 对 [OpenMAIC](https://gith
 ## 2. 仓库分层
 
 ```
-DSH-Openmaic/
+OpenTeach/
 ├─ references/            第三方参考仓库（只读，不入库）
 │  ├─ OpenMAIC/           上游移植来源；@openmaic/* 的 file: 依赖源
 │  ├─ deepseek-harness/   dsh 宿主 checkout（构建期软链 @deepseek-ai/*）

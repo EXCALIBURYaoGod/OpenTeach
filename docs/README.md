@@ -1,6 +1,6 @@
 # 技术文档索引
 
-本目录是 DSH-OpenMAIC 的技术说明。项目定位见根 [README](../README.md)：
+本目录是 OpenTeach 的技术说明。项目定位见根 [README](../README.md)：
 **基于 DeepSeek Harness（dsh）对 OpenMAIC 的重构**。
 
 ## 文档
