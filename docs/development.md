@@ -26,7 +26,7 @@ DSH_CHECKOUT=/path/to/deepseek-harness bash scripts/build.sh   # 不设则尝试
 2. **构建 openmaic-core**：`node packages/openmaic-core/build.mjs`
    —— esbuild 打单文件，并**复制提示词资产**到 `assets/`（见
    [generation.md](./generation.md) 第 3 节）。
-3. **打包组装层**：`tsdown` 把 `src/index.ts` 与 11 个模块插件打成
+3. **打包组装层**：`tsdown` 把 `src/index.ts` 与 12 个模块插件打成
    `lib/index.js`（单文件 ESM）。
 
 [`tsdown.config.ts`](../OpenTeach/tsdown.config.ts) 的外部化策略：
@@ -34,7 +34,7 @@ DSH_CHECKOUT=/path/to/deepseek-harness bash scripts/build.sh   # 不设则尝试
 - `@deepseek-ai/*`（cordis / schemastery / dsh-\*）保持 **external**，由 harness
   装载时的模块表解析（必须是同一实例）；
 - `@openteach/*` 与 `@openmaic/*` **内联**，使安装单位只有一个包；
-- `dts: false`：11 个模块插件的**裸 `.ts` 源码**被内联，rolldown-plugin-dts 为其生成
+- `dts: false`：12 个模块插件的**裸 `.ts` 源码**被内联，rolldown-plugin-dts 为其生成
   声明会命中 TS2742（推断类型引用 schemastery → cosmokit 的非公开路径）。声明改由
   手写的窄接口 `types/index.d.ts` 提供；运行时消费方（dsh Loader）只读 `lib/index.js`。
 

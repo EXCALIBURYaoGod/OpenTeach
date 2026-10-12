@@ -5,7 +5,7 @@
 DSH-OpenMAIC 是基于 **DeepSeek Harness（dsh）** 对 [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) 的重构：
 
 - **后端**（`OpenTeach/`）不做成一个独立 Web 服务，而是做成**一个 dsh 插件包** `@openteach/bundle`；
-  它把一个教学内核与 OpenMAIC 的核心服务端链路，按依赖顺序组装成 11 个模块插件；
+  它把一个教学内核与 OpenMAIC 的核心服务端链路，按依赖顺序组装成 12 个模块插件；
 - **前端**（`OpenTeach-frontend/`）直接移植 OpenMAIC 前端（Next.js），把接口从「OpenMAIC 自带路由」
   改为「转发到 OpenTeach 后端」；
 - **模型能力**在 dsh 宿主内**完全沿用宿主配置**，不再自持一份 LLM 配置。
@@ -25,7 +25,7 @@ DSH-Openmaic/
 │  └─ EduClaw/            已弃用
 ├─ OpenTeach/              后端：@openteach/bundle（dsh 插件）
 │  ├─ src/index.ts         组装入口（bundle 的 node 半部 = dsh 插件）
-│  ├─ packages/            11 个模块插件 + shared
+│  ├─ packages/            12 个模块插件 + shared
 │  ├─ assets/              随包携带的提示词资产（构建期复制）
 │  ├─ cordis.patch.yml     dsh bundle patch（声明安装行）
 │  └─ lib/index.js         tsdown 打出的单文件产物（含 vendor 进来的 openmaic-core）
@@ -33,7 +33,7 @@ DSH-Openmaic/
 └─ docs/                   本技术文档
 ```
 
-## 3. 组装模型：一个包，11 个模块插件
+## 3. 组装模型：一个包，12 个模块插件
 
 安装单位是**一个包**。`package.json` 的 `dsh.bundle.patch` 指向 `cordis.patch.yml`，
 后者只向 dsh profile 的 layer 栈插入**一行**：
@@ -63,7 +63,8 @@ DSH-Openmaic/
 | 8 | audio | `@openteach/plugin-audio` | `openmaic.tts`、`openmaic.asr` | — |
 | 9 | classroom | `@openteach/plugin-classroom` | `openmaic.classroom` | `eduLlm`、`llm`、`agents` |
 | 10 | openmaic-core | `@openteach/plugin-openmaic-core` | `openmaic.core` | — |
-| 11 | http | `@openteach/plugin-http` | `app` | `eduLlm`、`repo` |
+| 11 | kb | `@openteach/plugin-kb` | `openmaic.kb` | —（可选消费 `eduLlm`） |
+| 12 | http | `@openteach/plugin-http` | `app` | `eduLlm`、`repo` |
 
 顺序约束：
 

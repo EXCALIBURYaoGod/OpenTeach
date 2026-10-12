@@ -7,12 +7,13 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [architecture.md](./architecture.md) | 总体架构：仓库分层、`@openteach/bundle` 组装模型、11 个模块插件与服务拓扑、双持久化 |
+| [architecture.md](./architecture.md) | 总体架构：仓库分层、`@openteach/bundle` 组装模型、12 个模块插件与服务拓扑、双持久化 |
 | [llm.md](./llm.md) | LLM 接入：宿主优先（方案 B）反向适配、`eduLlm` 服务、独立运行回落、mock 降级 |
 | [generation.md](./generation.md) | 生成链路：openmaic-core 路由移植、提示词资产的三套目录与注入机制、资产随包构建 |
 | [classroom.md](./classroom.md) | 多智能体互动课堂：Director / 子智能体、角色注册表与权限、事件契约与 SSE 续传 |
 | [frontend.md](./frontend.md) | 前端移植与前后端集成：Next.js rewrite 代理、隐藏入口与 501、交互 widget 运行时约定 |
 | [development.md](./development.md) | 开发与部署：构建、启动、数据库、配置与环境变量、常见问题 |
+| [../OpenTeach/packages/kb/DESIGN.md](../OpenTeach/packages/kb/DESIGN.md) | 本地知识库设计：存储布局、BM25 检索、HTTP 契约与降级策略 |
 
 ## 阅读路径
 
