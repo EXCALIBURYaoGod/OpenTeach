@@ -25,10 +25,12 @@ export interface BrandConfig {
 
 /** The default brand: the product itself, with no vendor overrides. */
 export const DEFAULT_BRAND: BrandConfig = {
-  productName: 'OpenMAIC',
-  shortName: 'OpenMAIC',
-  logoSrc: '/logo-horizontal.png',
-  logoHasWordmark: true,
+  productName: 'OpenTeach',
+  shortName: 'OpenTeach',
+  // OPENMAIC-REMOVED: /logo-horizontal.png 把上游「OpenMAIC」字标烘焙进位图，本仓库不再使用它。
+  // 字标改由各界面用文字渲染（图形标记 + 产品名），位图只承担图形部分。
+  logoSrc: '/openmaic-mark.png',
+  logoHasWordmark: false,
   markSrc: '/openmaic-mark.png',
   themeColor: '#722ed1',
 };
