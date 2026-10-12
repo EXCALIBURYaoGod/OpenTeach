@@ -905,7 +905,7 @@ function HomePage() {
             }}
             className="flex items-center gap-2 md:gap-3 mb-2"
           >
-            <img src="/openmaic-mark.png" alt="" className="h-10 md:h-14 w-auto" />
+            <img src="/openteach-mark.png" alt="" className="h-10 md:h-14 w-auto" />
             <span className="text-3xl md:text-5xl font-semibold tracking-tight text-slate-700 dark:text-slate-100">
               Open<span className="text-[#722ed1]">Teach</span>
             </span>

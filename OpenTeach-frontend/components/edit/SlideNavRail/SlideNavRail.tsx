@@ -408,7 +408,10 @@ export function SlideNavRail() {
             >
               {/* Desktop client: the Electron title bar already shows the brand icon + name, so the edit rail doesn't repeat it;
                   returning home is handled by the edit bar's CommandBar back arrow. */}
-              <img src={brand.logoSrc} alt={brand.productName} className="h-6 w-auto" />
+              <img src={brand.markSrc} alt="" aria-hidden="true" className="h-6 w-auto shrink-0" />
+              <span className="text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-100">
+                Open<span style={{ color: brand.themeColor }}>Teach</span>
+              </span>
             </button>
           )}
         </div>

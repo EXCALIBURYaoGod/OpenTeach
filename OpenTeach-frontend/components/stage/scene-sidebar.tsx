@@ -131,7 +131,7 @@ export function SceneSidebar({
             className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 -mx-1.5 py-1 -my-1 hover:bg-gray-100/80 dark:hover:bg-gray-800/60 active:scale-[0.97] transition-all duration-150"
             title={t('generation.backToHome')}
           >
-            <img src="/openmaic-mark.png" alt="" className="h-6 w-auto" />
+            <img src="/openteach-mark.png" alt="" className="h-6 w-auto" />
             <span className="text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-100">
               Open<span className="text-[#722ed1]">Teach</span>
             </span>

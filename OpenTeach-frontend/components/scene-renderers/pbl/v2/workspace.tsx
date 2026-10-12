@@ -441,13 +441,7 @@ function WorkspaceTopBar({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(157,140,255,0.20),transparent_30%),radial-gradient(circle_at_78%_0%,rgba(34,211,238,0.13),transparent_26%),linear-gradient(90deg,rgba(255,255,255,0.05),transparent_34%,rgba(255,255,255,0.035))]" />
       <div className="relative flex min-w-0 flex-1 items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-200/25 bg-violet-100/[0.08] shadow-[0_0_24px_rgba(157,140,255,0.18)]">
-          <Image
-            src="/openmaic-mark.png"
-            alt="OpenMAIC"
-            width={28}
-            height={28}
-            className="h-6 w-6"
-          />
+          <Image src="/openteach-mark.png" alt="" width={28} height={28} className="h-6 w-6" />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">

@@ -13,11 +13,11 @@ export interface BrandConfig {
   productName: string;
   /** Short name for space-constrained spots. */
   shortName: string;
-  /** Horizontal logo asset under `public/`. */
+  /** Brand lockup asset under `public/`. */
   logoSrc: string;
   /** Whether `logoSrc` already carries the product wordmark. */
   logoHasWordmark: boolean;
-  /** Square brand mark under `public/` (favicon, workspace header). */
+  /** The mark alone, without a wordmark, under `public/`. */
   markSrc: string;
   /** Browser theme color (`<meta name="theme-color">` / PWA). */
   themeColor: string;
@@ -27,10 +27,10 @@ export interface BrandConfig {
 export const DEFAULT_BRAND: BrandConfig = {
   productName: 'OpenTeach',
   shortName: 'OpenTeach',
-  // OPENMAIC-REMOVED: /logo-horizontal.png 把上游「OpenMAIC」字标烘焙进位图，本仓库不再使用它。
+  // 上游的 /logo-horizontal.png 把「OpenMAIC」字标烘焙进位图，本仓库已删除该资源；
   // 字标改由各界面用文字渲染（图形标记 + 产品名），位图只承担图形部分。
-  logoSrc: '/openmaic-mark.png',
+  logoSrc: '/openteach-mark.png',
   logoHasWordmark: false,
-  markSrc: '/openmaic-mark.png',
+  markSrc: '/openteach-mark.png',
   themeColor: '#722ed1',
 };

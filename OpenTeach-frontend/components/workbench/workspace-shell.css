@@ -652,19 +652,20 @@
 }
 
 /* ── The hero lockup ─────────────────────────────────────────────────────
-   The workspace's identity mark, not its billboard. `logo-horizontal.png` is
-   1232×269, so an unsized `<img>` renders at 269px tall and turns the page
-   into a splash screen — the height below is what keeps the composer the
-   protagonist. Fixed pixels, deliberately: a viewport-relative hero grows on
-   a wide monitor, which is exactly where a 760px column can least afford it.
+   The workspace's identity mark, not its billboard. A brand whose lockup
+   bitmap carries its own wordmark is used as-is, so an unsized `<img>` would
+   render at its intrinsic height and turn the page into a splash screen — the
+   height below is what keeps the composer the protagonist. Fixed pixels,
+   deliberately: a viewport-relative hero grows on a wide monitor, which is
+   exactly where a 760px column can least afford it.
 
    For scale: the rail's wordmark is 21px, the classic homepage hero is 48–64px
    (a full page with nothing under it). The first cut of this surface took the
    bottom of that range and went under it — 40px is a browser-tab favicon, and
    a page whose masthead weighs nothing is top-light no matter what sits below.
-   46/56px is the correction: at 4.58:1 the wordmark lands 256px wide against a
-   760px composer, about a third of it, which is the proportion that makes the
-   two read as one lockup instead of a caption over a box. */
+   46/56px is the correction: the lockup lands about a third of the 760px
+   composer's width, which is the proportion that makes the two read as one
+   lockup instead of a caption over a box. */
 .ws-hero-logo {
   height: 46px;
   width: auto;
