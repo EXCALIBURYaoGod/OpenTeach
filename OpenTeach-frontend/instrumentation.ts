@@ -123,8 +123,13 @@ export async function register(): Promise<void> {
     return shutdownPromise;
   };
 
-  process.once('SIGTERM', () => void shutdown());
-  process.once('SIGINT', () => void shutdown());
+  // Registered from a separate module, never inline: Next.js flags
+  // `process.once` in the Edge compilation of THIS file at build time — the
+  // `NEXT_RUNTIME` guard above is not consulted by that check — so the call site
+  // has to live where the Edge bundle cannot reach it. See
+  // lib/server/graceful-shutdown.ts.
+  const { registerShutdownHandlers } = await import('@/lib/server/graceful-shutdown');
+  registerShutdownHandlers(shutdown);
 }
 
 /**

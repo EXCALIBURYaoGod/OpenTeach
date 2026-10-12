@@ -14,13 +14,7 @@
  */
 
 import { createLogger } from '@/lib/logger';
-import type {
-  KbDocument,
-  KbIndexInput,
-  KbSearchInput,
-  KbSearchResult,
-  KbStatus,
-} from './types';
+import type { KbDocument, KbIndexInput, KbSearchInput, KbSearchResult, KbStatus } from './types';
 
 const log = createLogger('KB');
 
@@ -92,6 +86,12 @@ export async function probeKnowledgeBase(signal?: AbortSignal): Promise<KbStatus
   try {
     return { available: true, knowledgeBases: await listKnowledgeBases(signal) };
   } catch (error) {
+    // 调用方主动取消不算「服务不可用」。开发期 React 会双挂载 effect，
+    // 第一次的请求随即被 cleanup abort —— 那是预期内的收尾，不是故障，
+    // 否则每次正常加载都会被打上一条告警，把真实的连接失败埋掉。
+    if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      return { available: false, knowledgeBases: [] };
+    }
     log.warn('知识库服务不可用（后端未装配 kb 插件，或 /api/kb 未被代理）:', error);
     return { available: false, knowledgeBases: [] };
   }
@@ -113,10 +113,7 @@ export async function deleteKnowledgeBase(kbName: string): Promise<void> {
 }
 
 /** 列出某知识库的文档。 */
-export async function listKbDocuments(
-  kbName: string,
-  signal?: AbortSignal,
-): Promise<KbDocument[]> {
+export async function listKbDocuments(kbName: string, signal?: AbortSignal): Promise<KbDocument[]> {
   const data = await callJson<{ documents?: KbDocument[] }>(
     `/${encodeURIComponent(kbName)}/documents`,
     { signal },
