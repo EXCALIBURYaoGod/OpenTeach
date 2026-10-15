@@ -108,9 +108,14 @@ pnpm dev                    # http://localhost:3000
 自检：
 
 ```sh
-curl http://127.0.0.1:8787/api/health     # defaultProvider / defaultModel / providers
+curl http://127.0.0.1:8787/api/llm/providers   # defaultProvider / defaultModel / providers（含 degraded 标志）
 curl http://127.0.0.1:8787/api/plugins    # 已装载插件与服务拓扑
 ```
+
+> `/api/health` 返回的是 openmaic-core 移植路由的响应（`status` / `capabilities`），
+> 其中 `capabilities` 只反映 webSearch / imageGeneration / videoGeneration / tts
+> 这四个可选能力域，全为 `false` 属预期，与聊天 LLM 无关 —— 判断模型可用性请用
+> 上面的 `/api/llm/providers`。
 
 ## 5. 数据库
 
@@ -167,7 +172,7 @@ openmaic-core 的 `stages` / `persistence` 等路由也不可用。可直接用
 **Q：日志说 LLM 降级 / 用 mock，但 dsh 里明明配了模型**
 宿主内运行时 `eduLlm` 是宿主 `ctx.llm` 的代理，`degradedProviders` 应为空集。
 若仍降级，说明 `probeDshLlm` 没等到宿主 `llm`（上限 8s）：
-确认 dsh 侧确实注册了 provider 路由（`/api/health` 的 `providers` 字段）。
+确认 dsh 侧确实注册了 provider 路由（`/api/llm/providers` 的 `providers` 字段）。
 
 **Q：`.env.local` 里的 Key 像是没被读到**
 `.env.local` 按**包根目录**解析，不是进程 cwd。dsh 从 harness checkout 启动时

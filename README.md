@@ -91,7 +91,9 @@ $env:OPENTEACH_API_BASE="http://127.0.0.1:8787"   # PowerShell
 pnpm dev            # http://localhost:3000
 ```
 
-自检：`curl http://127.0.0.1:8787/api/health` 应返回当前 provider 与模型。
+自检：`curl http://127.0.0.1:8787/api/llm/providers` 应返回当前默认 provider 与模型（如 `ark-doubao` / `doubao-seed-2-1-pro-260628`）；各 provider 的 `degraded` 为 `false` 即表示未落入 mock 适配器，LLM 真实可用。
+
+> 注意：`/api/health` 实际返回的是 openmaic-core 移植路由的响应，其 `capabilities`（webSearch / imageGeneration / videoGeneration / tts）只反映那四个**可选能力域**是否接入 —— 全为 `false` 属预期，与聊天 LLM 无关，不能据此判断模型是否可用。
 
 完整步骤、数据库与环境变量见 [docs/development.md](docs/development.md)。
 
