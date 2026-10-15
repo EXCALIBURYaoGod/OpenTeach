@@ -235,49 +235,297 @@ function buildDirectorContext(
   }
 }
 
-/** 建 Director 智能体并驱动其完成一轮编排（终态工具由 Director 自行调用）。 */
-async function runDirectorTurn(
-  deps: { ctx: Context; loaded: LoadedLlm; compaction: DirectorCompactionRuntime },
-  runtime: ClassroomToolRuntime,
-  directorContext: DirectorPromptContext,
-  latestUserMessage: string | undefined,
-  sessionId: string,
-  signal?: AbortSignal,
-): Promise<void> {
-  const handle = await deps.ctx.agents.create({
-    sessionId: SessionId(`${sessionId}:director`),
-    agentOptions: { provider: deps.loaded.defaultProvider, model: deps.loaded.defaultModel },
-    setup: (agentCtx) => {
-      // Director 系统提示词＝整段编排提示词（complete 使其成为唯一 section）。
-      agentCtx.systemPrompt.section({
-        name: 'classroom:director',
-        order: 0,
-        text: buildDirectorPrompt(directorContext, runtime.maxAgentTurns),
-        complete: true,
-      })
-      for (const tool of buildDirectorTools(runtime)) {
-        agentCtx.tools.register(tool)
-      }
-    },
+// ---------------------------------------------------------------------------
+// Director 常驻会话（跨轮记忆）
+// ---------------------------------------------------------------------------
+//
+// 同一课堂会话（classroom sessionId）只建一次 Director DSH 会话并让它跨轮存活，
+// 上下文因此逐轮累积——这就是「课堂跨轮记忆」。为此需要四件事：
+// 1. **串行化**：同 sessionId 的轮次经 Promise 链排队。DSH 对同一会话并发 `create`
+//    会以 `session "...:director" already exists` 拒绝，而客户端切轮会 abort 上一轮
+//    并立刻发下一轮，故必须由本层保证同会话同一时刻只有一轮在跑。
+// 2. **逐轮刷新**：系统提示词（场景/角色/白板态）与工具集都随轮次变化，且工具闭包持有
+//    本轮的守卫计数（连续空回合/总尝试次数），必须撤旧注册再按本轮重建。
+// 3. **回收**：句柄不再随轮结束销毁，改由空闲 TTL / 常驻上限与插件停止统一释放。
+// 4. **续接历史**：DSH 的 JSONL 持久化把会话落到 `<root>/<转义 id>/session.v3.jsonl.zstd`，
+//    且其 `create` 会拒绝「磁盘上已有日志」的 id（错误文本与内存 store 的完全一致）。
+//    所以 id 撞车不是异常而是常态：重启后，上一进程用过的课堂必然撞上自己的历史日志。
+//    此时用 `ctx.agents.resume` 打开那份日志，课堂即跨重启续接上下文；仅当历史不可读
+//    时才退回进程内唯一的后备 id 新建。
+
+/** Director 常驻句柄（类型取自 DSH `ctx.agents.create` 的返回）。 */
+type DirectorHandle = Awaited<ReturnType<Context['agents']['create']>>
+
+/** 一个课堂会话的常驻 Director 槽位。 */
+interface DirectorSlot {
+  /**
+   * 该槽位当前使用的 DSH 会话 id。正常即 `${classroomSessionId}:director`；
+   * 若该 id 的历史日志无法 resume，则改为进程内唯一的后备 id（见 {@link runTurn}）。
+   */
+  sessionId: string
+  /** 常驻句柄；创建失败时保持 undefined，由下一轮重试。 */
+  handle?: DirectorHandle
+  /** Director 智能体作用域上下文（逐轮重注册工具用）。 */
+  agentCtx?: Context
+  /** 本轮提示词上下文（section provider 在每次组装时读取）。 */
+  promptRef: { current: DirectorPromptContext }
+  /** 本轮工具注册的撤销句柄。 */
+  toolDisposers: (() => void)[]
+  /** 队尾 Promise：前一轮结束后放行下一轮。 */
+  chain: Promise<void>
+  /** 进行中/排队中的轮次数；>0 时不得回收。 */
+  pending: number
+  /** 最近一次转为空闲的时刻（TTL / LRU 回收依据）。 */
+  idleAt: number
+}
+
+/** 空闲回收阈值：超过该时长未使用的 Director 会话被关闭。 */
+const DIRECTOR_IDLE_TTL_MS = 30 * 60 * 1000
+/** 常驻上限：超出的按最久未使用优先回收，防内存无界增长。 */
+const DIRECTOR_MAX_SLOTS = 32
+/** 回收扫描间隔。 */
+const DIRECTOR_SWEEP_MS = 60 * 1000
+
+/** 门闩（无依赖的 deferred）。 */
+function createGate(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void
+  const promise = new Promise<void>((done) => {
+    resolve = done
   })
-  try {
-    handle.agent.followup(createUserMessage({
-      content: [{ type: 'text', text: buildUserPrompt(latestUserMessage) }],
-      source: { kind: 'user' },
-    }))
-    await handle.agent.whenIdle()
-    // 上下文压缩：安全边界＝本步已空闲、会话无打开 turn。按 DSH/provider 的 contextWindow
-    // 判定；超阈值时用一段课堂取向的摘要替换较早的 surface 节点，控制下一轮请求体量。
-    const compacted = await deps.compaction.compactSession(handle.agent.session, signal)
-    if (compacted) {
-      console.log(
-        `[openmaic] director 上下文压缩：${compacted.messagesBefore}→${compacted.messagesAfter} 条消息，` +
-          `${compacted.tokensBefore}→${compacted.tokensAfter} tokens`,
-      )
+  return { promise, resolve }
+}
+
+/** 错误 → 单行文本（日志用）。 */
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** 判定 DSH 会话重名错误（`session "..." already exists`）。 */
+function isSessionAlreadyExists(error: unknown): boolean {
+  return /already exists/.test(describeError(error))
+}
+
+/** 后备会话 id 序号：仅在历史无法 resume 时递增。 */
+let directorFallbackSeq = 0
+
+/**
+ * 本进程唯一标记（时间戳 + 随机）。DSH 的 JSONL 持久化会拒绝「磁盘上已有日志」的
+ * session id，故后备 id 必须随进程变化：只用自增序号的话，第二次重启会再次选中同一个
+ * 后缀，而它的日志已经落盘，后备重建同样会失败。
+ */
+const directorProcessNonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+
+/** Director 常驻会话管理器（每个插件实例一份）。 */
+interface DirectorSessions {
+  /** 驱动一轮编排：同 sessionId 串行，且跨轮复用同一 DSH 会话。 */
+  runTurn(
+    runtime: ClassroomToolRuntime,
+    directorContext: DirectorPromptContext,
+    latestUserMessage: string | undefined,
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<void>
+  /** 关闭全部常驻会话并停止回收定时器。 */
+  dispose(): Promise<void>
+}
+
+function createDirectorSessions(deps: {
+  ctx: Context
+  loaded: LoadedLlm
+  compaction: DirectorCompactionRuntime
+  maxAgentTurns: number
+}): DirectorSessions {
+  const slots = new Map<string, DirectorSlot>()
+
+  /** 撤掉上一轮的工具注册，并按本轮运行态重新注册（工具闭包持有本轮队列与守卫计数）。 */
+  function registerTools(slot: DirectorSlot, runtime: ClassroomToolRuntime): void {
+    const agentCtx = slot.agentCtx
+    if (agentCtx === undefined) return
+    for (const dispose of slot.toolDisposers) {
+      try {
+        dispose()
+      } catch (error) {
+        console.warn(`[openmaic] director 工具撤注册失败（已忽略）：${describeError(error)}`)
+      }
     }
-  } finally {
-    await handle.dispose()
+    slot.toolDisposers = buildDirectorTools(runtime).map(tool => agentCtx.tools.register(tool))
   }
+
+  /** 关闭并移出一个槽位（撤销工具注册 + 释放 DSH 会话）。 */
+  async function closeSlot(key: string, slot: DirectorSlot): Promise<void> {
+    if (slots.get(key) === slot) slots.delete(key)
+    for (const dispose of slot.toolDisposers) {
+      try {
+        dispose()
+      } catch {
+        // 撤注册失败不影响后续释放。
+      }
+    }
+    slot.toolDisposers = []
+    slot.agentCtx = undefined
+    const handle = slot.handle
+    slot.handle = undefined
+    try {
+      await handle?.dispose()
+    } catch (error) {
+      console.warn(`[openmaic] director 会话释放失败（已忽略）：${describeError(error)}`)
+    }
+  }
+
+  // 空闲/超限回收（unref：不因该定时器阻止进程退出）。
+  const sweeper = setInterval(() => {
+    const now = Date.now()
+    const idle: [string, DirectorSlot][] = []
+    for (const entry of slots) {
+      if (entry[1].handle !== undefined && entry[1].pending === 0) idle.push(entry)
+    }
+    idle.sort((a, b) => a[1].idleAt - b[1].idleAt)
+    const overflow = idle.length - DIRECTOR_MAX_SLOTS
+    idle.forEach(([key, slot], index) => {
+      if (index < overflow || now - slot.idleAt >= DIRECTOR_IDLE_TTL_MS) void closeSlot(key, slot)
+    })
+  }, DIRECTOR_SWEEP_MS)
+  ;(sweeper as unknown as { unref?: () => void }).unref?.()
+
+  async function runTurn(
+    runtime: ClassroomToolRuntime,
+    directorContext: DirectorPromptContext,
+    latestUserMessage: string | undefined,
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const key = `${sessionId}:director`
+    // 同步建槽（其间无 await）：保证同 id 的并发轮次看到同一槽位。
+    let slot = slots.get(key)
+    if (slot === undefined) {
+      slot = {
+        sessionId: key,
+        promptRef: { current: directorContext },
+        toolDisposers: [],
+        chain: Promise.resolve(),
+        pending: 0,
+        idleAt: Date.now(),
+      }
+      slots.set(key, slot)
+    }
+    const current = slot
+    current.pending += 1
+    // 入队：本轮排在前一轮之后（同一 DSH 会话不可并发驱动）。
+    const previous = current.chain
+    const gate = createGate()
+    current.chain = gate.promise
+    await previous
+
+    // 本轮开始后收到取消（客户端切轮）：中止当前活动以收敛回 idle——会话记录保留，
+    // 下一轮因此不必等本轮把 LLM 流跑完。
+    const onAbort = (): void => {
+      current.handle?.agent.cancel({ kind: 'user' })
+    }
+    try {
+      // 已取消的排队轮次：直接放弃，会话保持存活供下一轮复用。
+      if (signal?.aborted) return
+      // 本轮上下文在本轮真正开始时写入（而非入队时），避免影响仍在跑的前一轮的组装。
+      current.promptRef.current = directorContext
+      signal?.addEventListener('abort', onAbort, { once: true })
+
+      if (current.handle === undefined) {
+        const agentOptions = { provider: deps.loaded.defaultProvider, model: deps.loaded.defaultModel }
+        // create 与 resume 共用的作用域组装：resume 会重建一套全新的作用域世界，
+        // 故续接历史后工具与提示词同样是本轮最新的。
+        const setup = (agentCtx: Context): void => {
+          current.agentCtx = agentCtx
+          // 提示词以 provider 形式注册一次：每次组装都按「本轮」场景/角色/白板态求值，
+          // 故跨轮复用同一会话时不会残留上一轮的课堂上下文。
+          agentCtx.systemPrompt.section({
+            name: 'classroom:director',
+            order: 0,
+            complete: true,
+            text: () => buildDirectorPrompt(current.promptRef.current, deps.maxAgentTurns),
+          })
+          registerTools(current, runtime)
+        }
+        const createHandle = (id: string): Promise<DirectorHandle> =>
+          deps.ctx.agents.create({ sessionId: SessionId(id), agentOptions, setup })
+        /** 打开该 id 已落盘的历史日志并续接（create 会拒绝「磁盘上已有日志」的 id）。 */
+        const resumeHandle = (id: string): Promise<DirectorHandle> =>
+          deps.ctx.agents.resume({ resumeSessionId: SessionId(id), agentOptions, setup })
+        try {
+          current.handle = await createHandle(current.sessionId)
+        } catch (error) {
+          if (!isSessionAlreadyExists(error)) {
+            if (current.handle === undefined && slots.get(key) === current) slots.delete(key)
+            throw error
+          }
+          // 该 id 已被占用。这在本设计里是常态而非异常：DSH 的 JSONL 持久化会拒绝
+          // 「磁盘上已有日志」的 session id，所以重启后，上一进程用过的课堂必然撞上
+          // 自己的历史日志。首选 resume——把那份历史读回来，课堂即跨重启续接上下文。
+          try {
+            current.handle = await resumeHandle(current.sessionId)
+            console.log(
+              `[openmaic] director 会话 "${current.sessionId}" 已存在，改为 resume 续接历史上下文。`,
+            )
+          } catch (resumeError) {
+            // 历史不可读（宿主未装配持久化服务 / 日志损坏等）：退回本进程唯一的后备 id 新建。
+            // 后备 id 必须带进程标记：只用自增序号的话，第二次重启会再次选中同一个后缀，
+            // 而它的日志已经落盘，届时后备重建同样会失败。
+            directorFallbackSeq += 1
+            const fallbackId = `${key}#r${directorProcessNonce}-${directorFallbackSeq.toString(36)}`
+            console.warn(
+              `[openmaic] director 会话 "${current.sessionId}" 无法 resume（${describeError(resumeError)}），`
+              + `改用后备 id "${fallbackId}" 新建。`,
+            )
+            current.sessionId = fallbackId
+            try {
+              current.handle = await createHandle(fallbackId)
+            } catch (retryError) {
+              // 后备新建也失败：仍不留空槽，下一轮重新尝试。
+              if (current.handle === undefined && slots.get(key) === current) slots.delete(key)
+              throw retryError
+            }
+          }
+        }
+      } else {
+        // 复用常驻会话：只刷新本轮工具集（提示词由 provider 在每次组装时求值）。
+        registerTools(current, runtime)
+      }
+
+      const handle = current.handle
+      handle.agent.followup(createUserMessage({
+        content: [{ type: 'text', text: buildUserPrompt(latestUserMessage) }],
+        source: { kind: 'user' },
+      }))
+      await handle.agent.whenIdle()
+      // 上下文压缩：安全边界＝本步已空闲、会话无打开 turn。按 DSH/provider 的 contextWindow
+      // 判定；超阈值时用一段课堂取向的摘要替换较早的 surface 节点，控制下一轮请求体量。
+      // 会话现在跨轮存活，压缩同时承担「让长课堂的记忆有界」的职责。
+      // 压缩是机会性优化：它失败不能把已经跑完的一轮课堂判为出错（否则整轮只剩 error 帧）。
+      try {
+        const compacted = await deps.compaction.compactSession(handle.agent.session, signal)
+        if (compacted) {
+          console.log(
+            `[openmaic] director 上下文压缩：${compacted.messagesBefore}→${compacted.messagesAfter} 条消息，` +
+              `${compacted.tokensBefore}→${compacted.tokensAfter} tokens`,
+          )
+        }
+      } catch (error) {
+        console.warn(
+          `[openmaic] director 上下文压缩失败（已忽略，不影响本轮）：${describeError(error)}`,
+        )
+      }
+    } finally {
+      signal?.removeEventListener('abort', onAbort)
+      current.pending -= 1
+      current.idleAt = Date.now()
+      gate.resolve()
+    }
+  }
+
+  async function dispose(): Promise<void> {
+    clearInterval(sweeper)
+    await Promise.all([...slots].map(([key, slot]) => closeSlot(key, slot)))
+  }
+
+  return { runTurn, dispose }
 }
 
 /** 降级路径：无内核或 Mock 未产生任何发言时，产出确定性教师发言，保证课堂可渲染。 */
@@ -485,6 +733,10 @@ export function apply(ctx: Context, config: ClassroomConfig = {}): () => void {
     ...(compactionContextWindow === undefined ? {} : { contextWindow: compactionContextWindow }),
   })
 
+  // Director 常驻会话：跨轮复用同一 DSH 会话（课堂跨轮记忆），同 sessionId 串行，
+  // 并按空闲 TTL / 常驻上限回收。
+  const directors = createDirectorSessions({ ctx, loaded, compaction, maxAgentTurns })
+
   // -------------------------------------------------------------------------
   // runSession：真实 Director 循环
   // -------------------------------------------------------------------------
@@ -593,8 +845,7 @@ export function apply(ctx: Context, config: ClassroomConfig = {}): () => void {
     const turnTask = (async () => {
       if (useDirector) {
         try {
-          await runDirectorTurn(
-            { ctx, loaded, compaction },
+          await directors.runTurn(
             runtime,
             buildDirectorContext(agentConfigs, scenes, currentSceneId, input),
             input.message,
@@ -610,11 +861,15 @@ export function apply(ctx: Context, config: ClassroomConfig = {}): () => void {
       }
       // 降级兜底：Mock/无 Key 场景下 Director 无从真实编排（无法产出子智能体发言），
       // 产出确定性教师发言，保证课堂在无凭据时仍可渲染。
-      if (agentResponses.length === 0) {
-        await emitFallbackAgentTurn(runtime, agentConfigs, sessionId)
-      }
-      if (!userCued && !sessionClosed) {
-        await runtime.cueUser({})
+      // 本轮已被取消（客户端切轮）时不补发言与收束：这不是「模型没说话」而是本轮作废，
+      // 补出来的假发言会污染会话事件（断线续传时会显示）。
+      if (options.signal?.aborted !== true) {
+        if (agentResponses.length === 0) {
+          await emitFallbackAgentTurn(runtime, agentConfigs, sessionId)
+        }
+        if (!userCued && !sessionClosed) {
+          await runtime.cueUser({})
+        }
       }
     })()
     const markFinished = (): void => {
@@ -679,7 +934,10 @@ export function apply(ctx: Context, config: ClassroomConfig = {}): () => void {
     console.log(`[openmaic] classroom 编排层已接入 DSH 内核（defaultProvider=${loaded.defaultProvider}）`)
   }
 
-  return () => {
+  return async () => {
+    // 常驻 Director 会话随插件停止一并释放（含回收定时器）。必须 await：
+    // 若放任其异步释放，重新加载后的同名 create 会与尚未释放的残留会话撞车。
+    await directors.dispose()
     events.clear()
     sessions.clear()
     console.log(`[openmaic] classroom 插件停止（source=${service.source}）`)

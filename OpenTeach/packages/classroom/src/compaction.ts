@@ -238,7 +238,7 @@ export function createDirectorCompactionRuntime(opts: {
       if (!settings.enabled) return null
 
       const eventsBySeq = new Map<number, SessionEvent>()
-      for (const event of session.events) eventsBySeq.set(event.seq, event)
+      for (const event of session.snapshotEvents()) eventsBySeq.set(event.seq, event)
       const messageOf = (seq: number): DshMessage | null => {
         const event = eventsBySeq.get(seq)
         return event ? session.deriveEventMessage(event) : null
@@ -249,7 +249,7 @@ export function createDirectorCompactionRuntime(opts: {
       trace.checkCount += 1
       if (!shouldCompactDirector(tokensBefore, contextWindow, settings)) return null
 
-      const nodes = foldSurface(session.events).nodes
+      const nodes = foldSurface(session.snapshotEvents()).nodes
       if (nodes.length < 2) return null
 
       const nodeTokens = nodes.map(seq => {

@@ -1,7 +1,5 @@
 'use client';
 
-import { sampleInteractiveState } from '@/lib/interactive/chat-observation';
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   nextChatUpdatedAt,
@@ -415,6 +413,67 @@ export function fetchStatelessChat(
   });
 }
 
+/** `POST /api/classroom/chat` 的请求体（对齐 OpenTeach 后端 `parseSessionInput`）。 */
+interface ClassroomChatRequest {
+  sessionId: string;
+  agentIds: string[];
+  sessionType: SessionType;
+  message?: string;
+  stageId?: string;
+  triggerAgentId?: string;
+  scenes?: unknown[];
+}
+
+/** 取最后一条用户消息的纯文本——后端 Director 只接受单条 `message`（非 messages 数组）。 */
+function latestUserMessageText(messages: UIMessage<ChatMessageMetadata>[]): string {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role !== 'user') continue;
+    return message.parts
+      .filter(
+        (part): part is Extract<(typeof message.parts)[number], { type: 'text' }> =>
+          part.type === 'text',
+      )
+      .map((part) => part.text)
+      .join('');
+  }
+  return '';
+}
+
+/**
+ * 无状态请求（messages + storeState）→ 互动课堂请求（单条 message + 场景快照）。
+ *
+ * 前端每轮重发完整消息与场景，后端只认单条 `message`；这里做一次降维，
+ * 并把 `sessionId` 带上，后端据此续聊同一课堂会话（会话由后端自持）。
+ */
+export function toClassroomChatRequest(
+  sessionId: string,
+  sessionType: SessionType,
+  template: ChatRequestTemplate & { storeState: AgentLoopStoreState },
+): ClassroomChatRequest {
+  const stage = template.storeState.stage as { id?: unknown } | null;
+  const stageId = typeof stage?.id === 'string' && stage.id.length > 0 ? stage.id : undefined;
+  const { scenes } = template.storeState;
+  const message = latestUserMessageText(template.messages);
+  const triggerAgentId = template.config.triggerAgentId;
+  return {
+    sessionId,
+    agentIds: template.config.agentIds,
+    sessionType,
+    ...(message.length === 0 ? {} : { message }),
+    ...(stageId === undefined ? {} : { stageId }),
+    ...(typeof triggerAgentId === 'string' && triggerAgentId.length > 0 ? { triggerAgentId } : {}),
+    ...(scenes.length === 0 ? {} : { scenes }),
+  };
+}
+
+/**
+ * 一轮课堂对话：请求 OpenTeach 后端的 `POST /api/classroom/chat`（SSE，
+ * Director 循环），消费与 `StatelessEvent` 同形的事件流。
+ *
+ * 事件契约两端一致（agent_start / agent_end / text_delta / action / cue_user /
+ * done / error），后端额外下发一帧 `meta`（无 `type`），消费前丢弃。
+ */
 export async function runPiSingleRequest(
   sessionId: string,
   requestTemplate: ChatRequestTemplate & { storeState: AgentLoopStoreState },
@@ -436,11 +495,6 @@ export async function runPiSingleRequest(
   onResponseAccepted?: (response: Response) => void,
 ): Promise<void> {
   const consumer = createConsumer(sessionId, controller, sessionType);
-  // Every send re-samples the current Scene, including a follow-up with no reference.
-  const interactiveState = await sampleInteractiveState(
-    requestTemplate.storeState,
-    controller.signal,
-  );
   if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
   const reference = requestTemplate.elementReference;
   if (reference?.kind === 'whiteboard_element') {
@@ -457,10 +511,10 @@ export async function runPiSingleRequest(
       throw new Error(t('chat.elementReference.whiteboardChanged'));
     }
   }
-  const response = await fetch('/api/chat/pi', {
+  const response = await fetch('/api/classroom/chat', {
     method: 'POST',
     headers: withStageRoutesHeader({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ ...requestTemplate, ...(interactiveState ? { interactiveState } : {}) }),
+    body: JSON.stringify(toClassroomChatRequest(sessionId, sessionType, requestTemplate)),
     signal: controller.signal,
   });
 
@@ -494,7 +548,10 @@ export async function runPiSingleRequest(
       if (!part.trim() || part.startsWith(':')) continue;
       const dataLine = part.split('\n').find((line) => line.startsWith('data: '));
       if (!dataLine) continue;
-      const event = JSON.parse(dataLine.slice(6)) as StatelessEvent;
+      const parsed = JSON.parse(dataLine.slice(6)) as StatelessEvent | { type?: unknown };
+      // 后端首帧为无 `type` 的 `meta`（会话/模型信息），不是课堂事件。
+      if (typeof parsed.type !== 'string') continue;
+      const event = parsed as StatelessEvent;
       if (event.type === 'done') sawDoneEvent = true;
       consumer.onEvent(event);
     }

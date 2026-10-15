@@ -10,7 +10,9 @@
  * - OpenMAIC 用 pi-agent-core 的 `buildAgent` 建子智能体、订阅其 `message_update` 事件
  *   拿文本增量；本项目改用 DSH `ctx.agents.create({ meta:{ origin:'subagent' } })`
  *   建子智能体（自建 lead/teammate 路径，因 `dsh-experimental-agent-team` 不可用），
- *   并订阅 DSH 会话的 `assistant/chunk` 事件获取 `text-delta` 分片。
+ *   并订阅 DSH **agent 作用域**的 `agent/assistant-stream` 事件获取 `text-delta` 分片
+ *   （`chunk` 帧的 `frame.chunk` 即 `StreamChunk`）。该事件按 scope 过滤派发，
+ *   注册在子智能体自己的 `agentCtx` 上即只收本子智能体的增量。
  * - 子智能体**不注册原生动作工具**（与 OpenMAIC legacy 路径一致：`tools: []`），
  *   动作由结构化解析结果驱动 {@link executeClassroomAction} 执行；`buildChildActionTools`
  *   仅用于推导「本回合可用动作集」以生成提示词。
@@ -172,11 +174,10 @@ export function createChildDelegator(deps: ChildDelegatorDeps): ChildDelegator {
           text: systemPrompt,
           complete: true,
         })
-        // agent 作用域监听：只收本子会话的事件（DSH scope-filtered dispatch）。
-        agentCtx.on('session/event', (session, event) => {
-          if (session.id !== childSessionId) return
-          if (event.type !== 'assistant/chunk') return
-          const chunk = event.data.chunk
+        // agent 作用域监听：DSH 按 scope 过滤派发，本子智能体的流式帧只到这里。
+        agentCtx.on('agent/assistant-stream', ({ frame }) => {
+          if (frame.type !== 'chunk') return
+          const chunk = frame.chunk
           if (chunk.type !== 'text-delta') return
           const result = parseStructuredChunk(chunk.text, parserState)
           enqueue(() => processResult(result))
